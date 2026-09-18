@@ -1,0 +1,26 @@
+{
+  "name": "treasury-agent",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Reference implementation: \"put 500 USDC of idle treasury to work\" -- built entirely against @adasouls/sdk, no internal shortcuts (reference-agents/REPOSITORY.md).",
+  "type": "module",
+  "scripts": {
+    "setup": "tsx src/setup.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adasouls/sdk": "file:../../adasouls-sdk-typescript",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "eslint": "^9.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.15.0",
+    "vitest": "^2.1.0"
+  }
+}
