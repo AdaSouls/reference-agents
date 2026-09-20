@@ -31,6 +31,24 @@ jobs:
       - name: Build the SDK dependency
         working-directory: ../adasouls-sdk-typescript
         run: npm ci && npm run build
+      # Since Phase 9: also depends on @adasouls/alma-manifest
+      # ("file:../../alma/packages/alma-manifest") -- same rationale,
+      # checked out one level above $GITHUB_WORKSPACE to match. Builds
+      # alma-core explicitly before alma-manifest since npm's
+      # --workspaces build order isn't topologically guaranteed and
+      # alma-manifest needs alma-core's dist/ to already exist.
+      - name: Checkout alma
+        uses: actions/checkout@v4
+        with:
+          repository: AdaSouls/alma
+          ref: develop
+          path: ../alma
+      - name: Build the alma-manifest dependency (and its own alma-core dependency)
+        working-directory: ../alma
+        run: |
+          npm ci
+          npm run build --workspace @adasouls/alma-core
+          npm run build --workspace @adasouls/alma-manifest
       - run: npm install
       - run: npm run lint
       - run: npm run build

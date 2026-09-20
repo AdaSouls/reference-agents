@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { readFile } from "node:fs/promises";
+import { parseManifestYaml, compileManifest } from "@adasouls/alma-manifest";
 
 /**
  * One-time admin bootstrap -- NOT part of the agent's own runtime, and
@@ -11,6 +13,13 @@ import "dotenv/config";
  * "internal shortcut" (reference-agents/REPOSITORY.md's non-
  * responsibility) since it's the real, documented public REST surface,
  * just not the part the SDK wraps yet.
+ *
+ * Since Phase 9: reads treasury-agent.yaml (the Agent Manifest) instead
+ * of hardcoding the policy/delegation shape inline -- proves
+ * `alma-manifest`'s Phase 9 exit criterion for real ("the Treasury
+ * Agent's configuration can be expressed as, and reproduced from, a
+ * manifest file") by actually driving this repo's own setup from it,
+ * not just asserting shapes match in a unit test.
  *
  * Needs a real Auth0 access token (human/console-equivalent auth) --
  * get one the same way adasouls-api's own README documents for testing:
@@ -40,39 +49,42 @@ async function call<T>(path: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
+const manifestPath = new URL("../treasury-agent.yaml", import.meta.url);
+const manifest = parseManifestYaml(await readFile(manifestPath, "utf-8"));
+const compiled = compileManifest(manifest);
+
 const { organization, principal } = await call<{ organization: { id: string }; principal: { id: string } }>(
   "/organizations",
-  { name: `Treasury Agent Demo ${new Date().toISOString()}` }
+  { name: `${compiled.agent.displayName} Demo ${new Date().toISOString()}` }
 );
 
 const agent = await call<{ id: string }>("/agents", {
   organizationId: organization.id,
   principalId: principal.id,
-  displayName: "Treasury Agent",
+  displayName: compiled.agent.displayName,
 });
 
-// Self policy: the treasury's own risk tolerance. 1000 USDC max per
-// transaction, no human-approval threshold below that -- the "put 500
-// USDC to work" scenario clears this outright (status "authorized", not
-// "pending_approval").
-await call("/policies", { organizationId: organization.id, kind: "self", rules: { maxTransaction: { USDC: "1000" } } });
-
-// Counterparty policy: only pay counterparties with at least 1 prior
-// completed transaction -- demonstrates the counterparty-trust check is
-// real, not just self policy. src/treasury-agent.ts passes a
-// counterparty context that satisfies this for the demo's vendor.
-await call("/policies", { organizationId: organization.id, kind: "counterparty", rules: { minCompletedTransactions: 1 } });
+if (compiled.selfPolicy) {
+  await call("/policies", { organizationId: organization.id, kind: compiled.selfPolicy.kind, rules: compiled.selfPolicy.rules });
+}
+if (compiled.counterpartyPolicy) {
+  await call("/policies", {
+    organizationId: organization.id,
+    kind: compiled.counterpartyPolicy.kind,
+    rules: compiled.counterpartyPolicy.rules,
+  });
+}
 
 const delegation = await call<{ id: string }>("/delegations", {
   issuer: principal.id,
   subject: agent.id,
-  scope: { capabilities: ["pay"] },
+  scope: compiled.delegation.scope,
 });
 
 const apiKey = await call<{ key: string }>(`/organizations/${organization.id}/api-keys`, { label: "treasury-agent" });
 
-console.log("Setup complete. Add these to treasury-agent's .env:\n");
+console.log(`Setup complete from ${manifestPath.pathname}. Add these to treasury-agent's .env:\n`);
 console.log(`ADASOULS_API_URL=${apiUrl}`);
 console.log(`ADASOULS_API_KEY=${apiKey.key}`);
 console.log(`AGENT_ID=${agent.id}`);
-console.log(`\n(delegation ${delegation.id} grants "pay"; organization ${organization.id})`);
+console.log(`\n(delegation ${delegation.id} grants ${compiled.delegation.scope.capabilities.join(", ")}; organization ${organization.id})`);

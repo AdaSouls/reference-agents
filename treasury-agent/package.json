@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adasouls/alma-manifest": "file:../../alma/packages/alma-manifest",
     "@adasouls/sdk": "file:../../adasouls-sdk-typescript",
     "dotenv": "^16.4.5"
   },

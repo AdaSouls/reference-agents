@@ -15,6 +15,13 @@ an API key) that a human does once, over real REST with a real Auth0
 token — not part of the agent's own runtime, and not something the SDK
 covers yet (there's no console either, Phase 10).
 
+Since Phase 9, `setup.ts` reads [`treasury-agent.yaml`](treasury-agent.yaml)
+(an Agent Manifest, `@adasouls/alma-manifest`) instead of hardcoding the
+policy/delegation shape inline — proving that package's exit criterion
+for real ("the Treasury Agent's configuration can be expressed as, and
+reproduced from, a manifest file") by actually driving this repo's own
+setup from it.
+
 ## Setup
 
 ```bash
@@ -44,9 +51,12 @@ ADASOULS_TEST_AGENT_ID="alma:main:agent:..." \
 npm test
 ```
 
-`create-treasury-agent-test-fixture` mirrors `src/setup.ts` exactly
-(same policies, same delegation shape) but via `adasouls-api`'s service
-layer directly, so the test suite doesn't need a live Auth0 token.
+`create-treasury-agent-test-fixture` reads the exact same
+`treasury-agent.yaml` `src/setup.ts` does (via `@adasouls/alma-manifest`)
+but calls `adasouls-api`'s service layer directly instead of REST, so
+the test suite doesn't need a live Auth0 token — the two can't silently
+drift since there's only one manifest, not two hand-written copies of
+its values.
 
 ## Known gaps
 
@@ -54,7 +64,10 @@ layer directly, so the test suite doesn't need a live Auth0 token.
   a local sibling-checkout dependency, not the real published npm
   package (which hasn't been published yet — a deliberately separate
   decision, see that repo's README). Switch to `"@adasouls/sdk": "^0.1.0"`
-  once it is.
+  once it is. `@adasouls/alma-manifest` is similarly a local
+  sibling-checkout (`file:../../alma/packages/alma-manifest`) since it's
+  a private GitHub Packages workspace package, not (yet) resolvable
+  without the private registry token.
 - `src/setup.ts` is unverified against a real Auth0 token in this pass —
   the assistant that built this doesn't hold Auth0 credentials (by
   design, see `alma`'s own working conventions). The test suite verifies

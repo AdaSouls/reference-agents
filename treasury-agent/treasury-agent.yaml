@@ -1,0 +1,16 @@
+kind: Agent
+version: alma/v1
+metadata:
+  name: treasury-agent
+identity:
+  type: agent
+capabilities:
+  - pay
+authority:
+  maxTransaction:
+    USDC: "1000"
+counterpartyPolicy:
+  minCompletedTransactions: 1
+integrations:
+  wallet: crossmint
+  chain: base
