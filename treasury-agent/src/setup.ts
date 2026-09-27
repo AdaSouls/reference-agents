@@ -81,7 +81,8 @@ const delegation = await call<{ id: string }>("/delegations", {
   scope: compiled.delegation.scope,
 });
 
-const apiKey = await call<{ key: string }>(`/organizations/${organization.id}/api-keys`, { label: "treasury-agent" });
+// An agent key: it can act as this agent only (org-wide keys need orgWide: true).
+const apiKey = await call<{ key: string }>(`/organizations/${organization.id}/api-keys`, { label: "treasury-agent", agentId: agent.id });
 
 console.log(`Setup complete from ${manifestPath.pathname}. Add these to treasury-agent's .env:\n`);
 console.log(`ADASOULS_API_URL=${apiUrl}`);
