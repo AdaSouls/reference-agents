@@ -14,12 +14,15 @@ import { buildTreasuryAgent, describeAgent, putIdleTreasuryToWork } from "../src
 const apiKey = process.env.ADASOULS_TEST_API_KEY;
 const agentId = process.env.ADASOULS_TEST_AGENT_ID;
 const baseUrl = process.env.ADASOULS_API_URL;
+// A registered vendor with real (fixture) history -- the counterparty
+// policy is checked against what the API computes, not what we claim.
+const vendorId = process.env.ADASOULS_TEST_VENDOR_ID;
 
-describe.skipIf(!apiKey || !agentId || !baseUrl)("Treasury Agent", () => {
+describe.skipIf(!apiKey || !agentId || !baseUrl || !vendorId)("Treasury Agent", () => {
   it("puts 500 USDC of idle treasury to work: authorized under the self/counterparty policies set up for it", async () => {
     const agent = buildTreasuryAgent({ apiKey: apiKey!, agentId: agentId!, baseUrl });
 
-    const result = await putIdleTreasuryToWork(agent, "agent_demo_vendor");
+    const result = await putIdleTreasuryToWork(agent, vendorId!);
 
     expect(result.amount).toBe("500");
     expect(result.asset).toBe("USDC");
@@ -28,7 +31,7 @@ describe.skipIf(!apiKey || !agentId || !baseUrl)("Treasury Agent", () => {
 
   it("describeAgent() returns identity, authority, reputation, and history entirely from the public SDK", async () => {
     const agent = buildTreasuryAgent({ apiKey: apiKey!, agentId: agentId!, baseUrl });
-    await putIdleTreasuryToWork(agent, "agent_demo_vendor");
+    await putIdleTreasuryToWork(agent, vendorId!);
 
     const summary = await describeAgent(agent);
 
@@ -41,16 +44,16 @@ describe.skipIf(!apiKey || !agentId || !baseUrl)("Treasury Agent", () => {
   it("rejects a payment to a counterparty that doesn't meet the counterparty policy", async () => {
     const agent = buildTreasuryAgent({ apiKey: apiKey!, agentId: agentId!, baseUrl });
 
-    // putIdleTreasuryToWork always passes completedTransactions: 5 -- call
-    // execute() directly with a counterparty that fails the fixture's
-    // minCompletedTransactions: 1 rule, to prove that check is real too.
+    // An unregistered vendor has no history the API can vouch for, so the
+    // fixture's minCompletedTransactions: 1 rule rejects it -- whatever the
+    // caller might claim about it.
     await expect(
       agent.execute({
         capability: "pay",
         amount: "10",
         asset: "USDC",
         to: "agent_untrusted_vendor",
-        counterparty: { id: "agent_untrusted_vendor", completedTransactions: 0 },
+        counterparty: { id: "agent_untrusted_vendor" },
       })
     ).rejects.toMatchObject({ reasons: expect.arrayContaining([expect.stringContaining("completed transactions")]) });
   });

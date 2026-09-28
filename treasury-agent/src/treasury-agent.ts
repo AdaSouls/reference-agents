@@ -42,7 +42,8 @@ export async function putIdleTreasuryToWork(agent: SdkAgent, vendorAgentId: stri
     amount: "500",
     asset: "USDC",
     to: vendorAgentId,
-    counterparty: { id: vendorAgentId, completedTransactions: 5 },
+    // Only the id: adasouls-api computes the vendor's record from receipts.
+    counterparty: { id: vendorAgentId },
   });
 
   return { economicActionId: handle.action.id, status: handle.action.status, amount: "500", asset: "USDC", to: vendorAgentId };

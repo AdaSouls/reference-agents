@@ -4,6 +4,9 @@ import { buildTreasuryAgent, describeAgent, putIdleTreasuryToWork } from "./trea
 const apiKey = process.env.ADASOULS_API_KEY;
 const agentId = process.env.AGENT_ID;
 const baseUrl = process.env.ADASOULS_API_URL;
+// Must be a registered agent with real history for the counterparty policy
+// to pass (e.g. ADASOULS_TEST_VENDOR_ID from adasouls-api's
+// create-treasury-agent-test-fixture); the default is rejected by design.
 const vendorAgentId = process.env.VENDOR_AGENT_ID ?? "agent_demo_vendor";
 
 if (!apiKey || !agentId) {
