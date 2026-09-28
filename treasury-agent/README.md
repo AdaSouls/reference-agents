@@ -60,19 +60,9 @@ its values.
 
 ## Known gaps
 
-- `@adasouls/sdk` is installed as `file:../../adasouls-sdk-typescript` —
-  a local sibling-checkout dependency, not the real published npm
-  package (which hasn't been published yet — a deliberately separate
-  decision, see that repo's README). Switch to `"@adasouls/sdk": "^0.1.0"`
-  once it is. `@adasouls/alma-manifest` is similarly a local
-  sibling-checkout (`file:../../alma/packages/alma-manifest`) since it's
-  a private GitHub Packages workspace package, not (yet) resolvable
-  without the private registry token.
-- `src/setup.ts` is unverified against a real Auth0 token in this pass —
-  the assistant that built this doesn't hold Auth0 credentials (by
-  design, see `alma`'s own working conventions). The test suite verifies
-  the actual agent runtime (`src/treasury-agent.ts`) via the service-
-  layer fixture instead, which is the part that matters for "zero
-  internal shortcuts."
+- `src/setup.ts` hasn't been verified end to end against a real Auth0
+  token. The test suite verifies the actual agent runtime
+  (`src/treasury-agent.ts`) via the service-layer fixture instead, which
+  is the part that matters for "zero internal shortcuts."
 - No CI integration run yet — same reasoning as `adasouls-sdk-typescript`'s
   README (no deployed `dev` environment to point at).

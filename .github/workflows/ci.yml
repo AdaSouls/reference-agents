@@ -17,39 +17,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
-      # @adasouls/sdk isn't published yet -- treasury-agent/package.json
-      # depends on it via "file:../../adasouls-sdk-typescript" (a
-      # sibling-checkout path, matching local dev's directory layout; see
-      # treasury-agent/README.md's "Known gaps"). That resolves to one
-      # level *above* $GITHUB_WORKSPACE, so this checks the SDK repo out
-      # there too, at the exact relative location the file: path expects.
-      - name: Checkout adasouls-sdk-typescript
-        uses: actions/checkout@v4
-        with:
-          repository: AdaSouls/adasouls-sdk-typescript
-          path: ../adasouls-sdk-typescript
-      - name: Build the SDK dependency
-        working-directory: ../adasouls-sdk-typescript
-        run: npm ci && npm run build
-      # Since Phase 9: also depends on @adasouls/alma-manifest
-      # ("file:../../alma/packages/alma-manifest") -- same rationale,
-      # checked out one level above $GITHUB_WORKSPACE to match. Builds
-      # alma-core explicitly before alma-manifest since npm's
-      # --workspaces build order isn't topologically guaranteed and
-      # alma-manifest needs alma-core's dist/ to already exist.
-      - name: Checkout alma
-        uses: actions/checkout@v4
-        with:
-          repository: AdaSouls/alma
-          ref: develop
-          path: ../alma
-      - name: Build the alma-manifest dependency (and its own alma-core dependency)
-        working-directory: ../alma
-        run: |
-          npm ci
-          npm run build --workspace @adasouls/alma-core
-          npm run build --workspace @adasouls/alma-manifest
-      - run: npm install
+          cache: npm
+          cache-dependency-path: treasury-agent/package-lock.json
+      - run: npm ci
       - run: npm run lint
       - run: npm run build
       # Only the mocked/skipped-by-default suite runs here -- see
