@@ -3,8 +3,7 @@
 Reference implementation of AdaSouls's headline scenario: **"put 500
 USDC of idle treasury to work."** Demonstrates ALMA identity, delegation,
 self/counterparty policy, `EconomicAction` execution, and audit history
-— built entirely against `@adasouls/sdk`, no internal shortcuts (see
-`reference-agents/REPOSITORY.md` in `alma`). If this agent needed
+— built entirely against `@adasouls/sdk`, no internal shortcuts. If this agent needed
 something the SDK doesn't expose, that would be an SDK gap to fix, not
 something special-cased here.
 
@@ -12,15 +11,13 @@ something special-cased here.
 AdaSouls through nothing but the public SDK. `src/setup.ts` is the
 one-time admin bootstrap (create an org, agent, policies, a delegation,
 an API key) that a human does once, over real REST with a real Auth0
-token — not part of the agent's own runtime, and not something the SDK
-covers yet (there's no console either, Phase 10).
+token — not part of the agent's own runtime. (The AdaSouls console can
+do the same by hand.)
 
-Since Phase 9, `setup.ts` reads [`treasury-agent.yaml`](treasury-agent.yaml)
-(an Agent Manifest, `@adasouls/alma-manifest`) instead of hardcoding the
-policy/delegation shape inline — proving that package's exit criterion
-for real ("the Treasury Agent's configuration can be expressed as, and
-reproduced from, a manifest file") by actually driving this repo's own
-setup from it.
+`setup.ts` reads [`treasury-agent.yaml`](treasury-agent.yaml), an ALMA
+Agent Manifest (`@adasouls/alma-manifest`), instead of hardcoding the
+policy and delegation shape: the agent's configuration is expressed as,
+and reproduced from, that one file.
 
 ## Setup
 
