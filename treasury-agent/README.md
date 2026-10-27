@@ -36,6 +36,33 @@ cp .env.example .env
 4. `npm start` — runs the actual demo: puts 500 USDC to work, then
    prints the agent's identity/authority/reputation/recent history.
 
+## Paying from the agent's own wallet
+
+`npm run pay-from-wallet` pays the vendor from the agent's own wallet
+(Base Sepolia USDC) through the SDK's guarded wallet
+([`src/guarded-treasury.ts`](src/guarded-treasury.ts)). AdaSouls
+authorizes the payment first, and the wallet sends exactly what was
+authorized. The signer lives inside the one `send` function in
+[`src/pay-from-wallet.ts`](src/pay-from-wallet.ts), and nothing else
+sees it. The agent needs its wallet connected in "self" mode. Set
+`AGENT_WALLET_PRIVATE_KEY` (and optionally `BASE_SEPOLIA_RPC_URL`) in
+`.env`.
+
+**Payment records are on disk, in `PAYMENTS_DIR` (default
+`.adasouls/payments`).** The wallet writes each payment down before
+sending it, using `FilePaymentStore`, never the SDK's in-memory default.
+Because of that, a process that stops at any point can just be run again
+with the same `PAYMENT_RUN_ID`:
+
+- The API returns the same action for that run (its Idempotency-Key).
+- The wallet finds its record and reports or reconciles the payment
+  instead of sending it again.
+
+A payment whose outcome the wallet can't tell (it stopped while
+sending) fails with `PaymentInDoubtError` and is never resent on its
+own; check the wallet, then `wallet.report()` or `wallet.forget()`.
+Keep the directory across deploys, and on a local disk.
+
 ## Testing
 
 ```bash
@@ -56,6 +83,10 @@ drift since there's only one manifest, not two hand-written copies of
 its values.
 
 ## Known gaps
+
+- `npm run pay-from-wallet` is covered by mocked tests
+  (`test/guarded-treasury.test.ts`, including a restart between sending
+  and reporting), not yet by a run against a live API and Base Sepolia.
 
 - `src/setup.ts` hasn't been verified end to end against a real Auth0
   token. The test suite verifies the actual agent runtime
