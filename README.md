@@ -14,7 +14,9 @@ Identities, delegations and policies follow the
 An agent that pays a vendor under its organization's self and counterparty
 policies: the payment is authorized only within its limits, and only to a
 vendor with real, verifiable history. Its setup is declared in an ALMA
-Agent Manifest (`treasury-agent/treasury-agent.yaml`).
+Agent Manifest (`treasury-agent/treasury-agent.yaml`). It can also pay
+from its own wallet through the SDK's guarded wallet, with its payment
+records on disk so a restart never pays twice.
 
 See [`treasury-agent/README.md`](treasury-agent/README.md) for setup and
 testing.
