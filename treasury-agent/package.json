@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@adasouls/alma-manifest": "^0.2.1",
-    "@adasouls/sdk": "^0.6.0",
+    "@adasouls/sdk": "^0.8.0",
     "dotenv": "^16.4.5",
     "viem": "2.57.5"
   },
