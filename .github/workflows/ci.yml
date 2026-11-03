@@ -7,23 +7,25 @@ on:
     branches: [develop]
 
 jobs:
-  build-and-test:
+  agent:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: [treasury-agent, governance-analyst]
     defaults:
       run:
-        working-directory: treasury-agent
+        working-directory: ${{ matrix.agent }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
           cache: npm
-          cache-dependency-path: treasury-agent/package-lock.json
+          cache-dependency-path: ${{ matrix.agent }}/package-lock.json
       - run: npm ci
       - run: npm run lint
       - run: npm run build
-      # Only the mocked/skipped-by-default suite runs here -- see
-      # test/treasury-agent.test.ts's skipIf and README.md's "Known gaps"
-      # (no deployed dev environment yet to run the real integration path
-      # against).
+      # Offline suites only (STANDARD.md rule 6). Live-API runs are env-gated
+      # and skipped here until a dev environment exists.
       - run: npm test
