@@ -1,0 +1,117 @@
+[
+  {
+    "block_time": 1761000000,
+    "proposal_id": "gov_action1fixture000000000000000000000000000000000000000000001qq",
+    "proposal_tx_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "proposal_index": 0,
+    "proposal_type": "InfoAction",
+    "proposal_description": {
+      "tag": "InfoAction"
+    },
+    "previous_gov_action_proposal_id": null,
+    "deposit": "100000000000",
+    "return_address": "stake1u9fixture",
+    "proposed_epoch": 600,
+    "ratified_epoch": null,
+    "enacted_epoch": null,
+    "dropped_epoch": null,
+    "expired_epoch": null,
+    "expiration": 606,
+    "meta_url": "https://anchors.example/info-good.jsonld",
+    "meta_hash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "meta_json": null,
+    "meta_comment": null,
+    "meta_language": null,
+    "meta_is_valid": null,
+    "withdrawal": null,
+    "param_proposal": null
+  },
+  {
+    "block_time": 1761000100,
+    "proposal_id": "gov_action1fixture000000000000000000000000000000000000000000002qq",
+    "proposal_tx_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+    "proposal_index": 0,
+    "proposal_type": "TreasuryWithdrawals",
+    "proposal_description": {
+      "tag": "TreasuryWithdrawals"
+    },
+    "previous_gov_action_proposal_id": null,
+    "deposit": "100000000000",
+    "return_address": "stake1u9fixture",
+    "proposed_epoch": 600,
+    "ratified_epoch": null,
+    "enacted_epoch": null,
+    "dropped_epoch": null,
+    "expired_epoch": null,
+    "expiration": 606,
+    "meta_url": "https://anchors.example/info-tampered.jsonld",
+    "meta_hash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "meta_json": null,
+    "meta_comment": null,
+    "meta_language": null,
+    "meta_is_valid": false,
+    "withdrawal": [
+      {
+        "stake_address": "stake1u9fixture",
+        "amount": "1000000000000"
+      }
+    ],
+    "param_proposal": null
+  },
+  {
+    "block_time": 1761000200,
+    "proposal_id": "gov_action1fixture000000000000000000000000000000000000000000003qq",
+    "proposal_tx_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+    "proposal_index": 1,
+    "proposal_type": "ParameterChange",
+    "proposal_description": {
+      "tag": "ParameterChange"
+    },
+    "previous_gov_action_proposal_id": null,
+    "deposit": "100000000000",
+    "return_address": "stake1u9fixture",
+    "proposed_epoch": 601,
+    "ratified_epoch": null,
+    "enacted_epoch": null,
+    "dropped_epoch": null,
+    "expired_epoch": null,
+    "expiration": 607,
+    "meta_url": "https://anchors.example/missing.jsonld",
+    "meta_hash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "meta_json": null,
+    "meta_comment": null,
+    "meta_language": null,
+    "meta_is_valid": null,
+    "withdrawal": null,
+    "param_proposal": {
+      "min_fee_a": 44
+    }
+  },
+  {
+    "block_time": 1750000000,
+    "proposal_id": "gov_action1fixture000000000000000000000000000000000000000000004qq",
+    "proposal_tx_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+    "proposal_index": 0,
+    "proposal_type": "HardForkInitiation",
+    "proposal_description": {
+      "tag": "HardForkInitiation"
+    },
+    "previous_gov_action_proposal_id": null,
+    "deposit": "100000000000",
+    "return_address": "stake1u9fixture",
+    "proposed_epoch": 590,
+    "ratified_epoch": 595,
+    "enacted_epoch": 596,
+    "dropped_epoch": 596,
+    "expired_epoch": null,
+    "expiration": 596,
+    "meta_url": "https://anchors.example/info-good.jsonld",
+    "meta_hash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "meta_json": null,
+    "meta_comment": null,
+    "meta_language": null,
+    "meta_is_valid": true,
+    "withdrawal": null,
+    "param_proposal": null
+  }
+]

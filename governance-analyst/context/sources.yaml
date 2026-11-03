@@ -1,0 +1,20 @@
+# Every external source, and how far it is trusted (STANDARD.md rule 2).
+sources:
+  - name: koios
+    kind: chain-indexer
+    base_url: ${KOIOS_BASE_URL:-https://api.koios.rest/api/v1}
+    network: cardano:mainnet
+    endpoints:
+      - /proposal_list
+      - /proposal_voting_summary?_proposal_id=
+      - /proposal_votes?_proposal_id=
+      - /drep_info
+    trust: "on-chain fields, as reported by one indexer; cross-check planned"
+    auth: optional bearer (KOIOS_API_KEY) for higher rate limits
+  - name: anchors
+    kind: proposer-supplied documents
+    trust: "untrusted; accepted only if blake2b-256(bytes) == on-chain anchor hash"
+    fetch: "exactly the URL the chain names, once, with size and time limits"
+  - name: constitution
+    kind: on-chain anchored document
+    trust: "untrusted bytes; accepted only if the hash matches the on-chain constitution anchor"

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alma.adasouls.io/spec/attestations/cardano.gov.action_observed.json",
+  "title": "cardano.gov.action_observed",
+  "description": "The analyst saw a governance action and checked its anchor. Deterministic: anyone can recompute `claims` from the chain and the anchor URL. Envelope: alma-attestation/1 (STANDARD.md).",
+  "type": "object",
+  "required": ["v", "type", "agent", "almaVersion", "subject", "observedAt", "observed", "sources", "claims", "decidedBy", "issuedAt"],
+  "properties": {
+    "v": { "const": "alma-attestation/1" },
+    "type": { "const": "cardano.gov.action_observed" },
+    "agent": { "type": "string", "pattern": "^alma:[a-z][a-z0-9-]*:agent:" },
+    "almaVersion": { "type": "string" },
+    "subject": {
+      "type": "object",
+      "required": ["kind", "id", "network"],
+      "properties": {
+        "kind": { "const": "cardano.gov_action" },
+        "id": { "type": "string", "description": "CIP-129 bech32, gov_action1..." },
+        "network": { "enum": ["cardano:mainnet", "cardano:preprod", "cardano:preview"] }
+      }
+    },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "observed": {
+      "type": "object",
+      "required": ["epoch"],
+      "properties": { "epoch": { "type": "integer" }, "slot": { "type": "integer" }, "blockHash": { "type": "string" } }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "fetchedAt"],
+        "properties": {
+          "name": { "type": "string" },
+          "endpoint": { "type": "string" },
+          "fetchedAt": { "type": "string", "format": "date-time" },
+          "digest": { "type": "string" }
+        }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "required": ["actionId", "txHash", "index", "kind", "anchorVerified", "proposedEpoch", "expiresEpoch"],
+      "properties": {
+        "actionId": { "type": "string" },
+        "txHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "index": { "type": "integer", "minimum": 0 },
+        "kind": { "enum": ["ParameterChange", "HardForkInitiation", "TreasuryWithdrawals", "NoConfidence", "NewCommittee", "NewConstitution", "InfoAction"] },
+        "anchorUrl": { "type": ["string", "null"] },
+        "anchorHash": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "anchorVerified": { "enum": ["verified", "mismatch", "unavailable", "none"] },
+        "anchorDigest": { "type": ["string", "null"], "description": "What the bytes actually hashed to; differs from anchorHash on a mismatch" },
+        "proposer": { "type": ["string", "null"], "description": "Return (deposit) stake address" },
+        "deposit": { "type": ["string", "null"], "description": "Lovelace, as a decimal string" },
+        "proposedEpoch": { "type": "integer" },
+        "expiresEpoch": { "type": ["integer", "null"] },
+        "previousActionId": { "type": ["string", "null"] }
+      }
+    },
+    "artifact": { "type": ["object", "null"] },
+    "decidedBy": { "const": null, "description": "Nobody decides anything here: this is an observation" },
+    "issuedAt": { "type": "string", "format": "date-time" }
+  }
+}

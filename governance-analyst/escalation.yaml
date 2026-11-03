@@ -1,0 +1,19 @@
+# Which decisions a human takes (STANDARD.md rule 8).
+decisions:
+  - id: vote
+    description: Yes / No / Abstain on a governance action, and the published rationale
+    decided_by:
+      person: "Matías Falcone"
+      role: "AdaSouls DRep and SOULS pool operator"
+    how: "`gov review <tx>-<ix>`: reads the analysis, edits the rationale, records the decision"
+    recorded_in: votes/<tx>-<ix>/decision.json and event cardano.gov.decision (decidedBy)
+    expires: never        # a decision stands; a new one supersedes it
+  - id: publish-analysis-before-decision
+    description: Whether an analysis may be published before the human decided
+    decided_by:
+      person: "Matías Falcone"
+    default: after        # policies/ai-use.md: "as it stood when the decision was made"
+agent_decides_alone:
+  - which actions to ingest (all open ones)
+  - whether an anchor verifies (hash equality; no judgement)
+  - the content of the draft analysis (marked declared)

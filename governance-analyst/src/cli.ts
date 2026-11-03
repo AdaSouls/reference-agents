@@ -1,0 +1,59 @@
+#!/usr/bin/env node
+import "dotenv/config";
+import { ingest } from "./ingest.js";
+import { KoiosClient } from "./koios.js";
+import { ActionStore } from "./store.js";
+
+/**
+ * gov ingest [--all]      list governance actions, verify anchors, store them
+ * gov list                what is stored, with each anchor's verdict
+ *
+ * Later phases add `gov constitution`, `gov analyse <tx>-<ix>`,
+ * `gov review <tx>-<ix>` and `gov publish`. None of them ever builds or
+ * submits a transaction (agent.yaml, security.md).
+ */
+
+const env = (name: string, fallback?: string): string | undefined => process.env[name]?.trim() || fallback;
+
+async function main(argv: string[]): Promise<number> {
+  const [command, ...rest] = argv;
+  const store = new ActionStore(env("DATA_DIR", "./data")!);
+  switch (command) {
+    case "ingest": {
+      const koios = new KoiosClient({ baseUrl: env("KOIOS_BASE_URL"), apiKey: env("KOIOS_API_KEY") });
+      const summary = await ingest(koios, store, {
+        all: rest.includes("--all"),
+        anchor: { maxBytes: Number(env("ANCHOR_MAX_BYTES", "2000000")), timeoutMs: Number(env("ANCHOR_TIMEOUT_MS", "20000")) },
+        log: (line) => console.log(line),
+      });
+      console.log(
+        `\n${summary.ingested} of ${summary.seen} actions ingested: ${summary.verified} verified, ${summary.mismatch} mismatch, ${summary.unavailable} unavailable, ${summary.none} without anchor`
+      );
+      return summary.mismatch > 0 ? 2 : 0;
+    }
+    case "list": {
+      const keys = await store.keys();
+      if (keys.length === 0) {
+        console.log("nothing ingested yet; run `gov ingest`");
+        return 0;
+      }
+      for (const key of keys) {
+        const check = await store.readCheck(key);
+        const onchain = await store.readOnchain(key);
+        console.log(`${(check?.anchor.status ?? "?").padEnd(11)} ${key}  ${onchain?.proposal_type ?? "?"}  ${check?.checkedAt ?? ""}`);
+      }
+      return 0;
+    }
+    default:
+      console.error("usage: gov <ingest [--all] | list>");
+      return 1;
+  }
+}
+
+main(process.argv.slice(2)).then(
+  (code) => process.exit(code),
+  (err) => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  }
+);

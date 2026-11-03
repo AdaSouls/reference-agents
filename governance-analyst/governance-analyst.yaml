@@ -1,0 +1,16 @@
+kind: Agent
+version: alma/v1
+metadata:
+  name: governance-analyst
+identity:
+  type: agent
+# What it may do. No `pay`: this agent moves nothing and votes for no one.
+capabilities:
+  - analyze
+  - attest
+authority:
+  allowedActions:
+    - analyze
+    - attest
+integrations:
+  chain: cardano
