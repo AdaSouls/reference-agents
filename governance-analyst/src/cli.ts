@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import "dotenv/config";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { AnalysisRejected, loadSystemPrompt } from "./analysis.js";
+import { analyseAction } from "./analyse.js";
 import { syncConstitution } from "./constitution-sync.js";
+import { anthropicCompleter } from "./model.js";
 import { ingest } from "./ingest.js";
 import { KoiosClient } from "./koios.js";
 import { ActionStore, ConstitutionStore } from "./store.js";
@@ -10,8 +16,9 @@ import { ActionStore, ConstitutionStore } from "./store.js";
  * gov ingest [--all]      list governance actions, verify anchors, store them
  * gov list                what is stored, with each anchor's verdict
  * gov constitution        the Constitution in force, verified and split into citable sections
+ * gov analyse <tx>-<ix>   the analysis: facts + Constitution + the proposer's document -> model -> checks -> files
  *
- * Later phases add `gov analyse <tx>-<ix>`,
+ * Later phases add
  * `gov review <tx>-<ix>` and `gov publish`. None of them ever builds or
  * submits a transaction (agent.yaml, security.md).
  */
@@ -63,6 +70,34 @@ async function main(argv: string[]): Promise<number> {
       console.error(`constitution ${result.status}: no source produced bytes matching ${result.anchor.hash}`);
       return result.status === "mismatch" ? 2 : 1;
     }
+    case "analyse":
+    case "analyze": {
+      const key = rest.find((a) => !a.startsWith("--"));
+      if (!key) {
+        console.error("usage: gov analyse <tx>-<ix>");
+        return 1;
+      }
+      const promptsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "prompts");
+      const policyPath = env("CONFLICT_OF_INTEREST_POLICY");
+      const policy = policyPath ? await readFile(policyPath, "utf8") : env("COI_TERMS") ? `Parties and topics that trigger a conflict of interest: ${env("COI_TERMS")}` : "";
+      try {
+        await analyseAction(key, store, new ConstitutionStore(env("DATA_DIR", "./data")!), {
+          system: await loadSystemPrompt(promptsDir),
+          completer: anthropicCompleter(env("ANALYSIS_MODEL", "claude-sonnet-4-5")!),
+          conflictOfInterestPolicy: policy,
+          analysisUrlTemplate: env("ANALYSIS_URL_TEMPLATE"),
+          log: (line) => console.log(line),
+        });
+        return 0;
+      } catch (err) {
+        if (err instanceof AnalysisRejected) {
+          console.error(`rejected (${err.check}); nothing written:`);
+          for (const p of err.problems) console.error(`  - ${p}`);
+          return 3;
+        }
+        throw err;
+      }
+    }
     case "list": {
       const keys = await store.keys();
       if (keys.length === 0) {
@@ -77,7 +112,7 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     default:
-      console.error("usage: gov <ingest [--all] | constitution | list>");
+      console.error("usage: gov <ingest [--all] | constitution | analyse <tx>-<ix> | list>");
       return 1;
   }
 }
