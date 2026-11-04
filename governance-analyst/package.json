@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "description": "Reads every open Cardano governance action, verifies its anchor, and prepares a signed analysis for a human to decide on. Never votes. (reference-agents/STANDARD.md)",
   "type": "module",
-  "bin": { "gov": "dist/cli.js" },
+  "bin": {
+    "gov": "dist/cli.js"
+  },
   "scripts": {
     "start": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.json",
@@ -12,9 +14,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adasouls/alma-core": "^0.10.0",
     "@adasouls/alma-manifest": "^0.2.1",
+    "@anthropic-ai/sdk": "^0.80.0",
     "@noble/hashes": "^1.7.1",
     "dotenv": "^16.4.5",
+    "undici": "^7.30.1",
     "yaml": "^2.6.1",
     "zod": "^3.24.1"
   },
