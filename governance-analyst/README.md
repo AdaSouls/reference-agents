@@ -16,7 +16,7 @@ Its outputs go to that repository's `votes/`; its code lives here.
 | 2. Constitution: the one in force (latest enacted `NewConstitution` action), bytes verified against its on-chain anchor hash, split into sections and guardrails with stable ids (`art-2-sec-7`, `app-1-s2-1`, `PARAM-03a`) | `gov constitution` | **done** (G1.2) |
 | 3. Analysis: one model call over verified facts, the Constitution in force and the proposer's document quoted as data; structured JSON checked before anything is written (every figure cites a `FACTS` path and matches it; every Constitution id exists), then `analysis.md` and a draft CIP-100 rationale | `gov analyse <tx>-<ix>` | **done** (G1.3) |
 | 4. Review: record the human's Yes / No / Abstain and reason (who may decide comes from `escalation.yaml`), write the final CIP-100 rationale from the draft, compute its anchor hash like `cardano-cli hash anchor-data --file-text` (blake2b-256 of the bytes), and sign analysis and decision with the analysis key (`gov keygen`) | `gov review <tx>-<ix> --vote … --reason …` | **done** (G1.4) |
-| 5. Publish: sign analysis and decision with the AdaSouls analysis key (Ed25519, alma-core issuer-signature format), emit `cardano.gov.analysis` and `cardano.gov.decision`, build the static site | `gov publish` | G1.5 |
+| 5. Publish: copy decided actions into `cardano-governance/votes/<tx>-<ix>/` and regenerate `votes/README.md`; after you commit, `gov anchor` gives the immutable raw URL at that sha and re-checks the hash of what is actually served | `gov publish`, `gov anchor <tx>-<ix> --commit <sha> --check` | **done** (G1.5, files); events to the explorer wait for `alma-attestation/1` |
 
 ## What it never does
 
@@ -39,6 +39,8 @@ npm start -- constitution   # the Constitution in force; IPFS_GATEWAY and CONSTI
 npm start -- analyse <tx>-<ix>   # needs ANTHROPIC_API_KEY; exit 3 = the model's answer failed a check, nothing written
 npm start -- keygen .keys/analysis.key   # once; put the path in ANALYSIS_KEY_FILE, publish kid + public key
 npm start -- review <tx>-<ix> --vote No --reason "why"   # writes rationale.jsonld, decision.json, *.sig.json
+npm start -- publish                      # into $GOVERNANCE_DIR/votes/; then git commit there
+npm start -- anchor <tx>-<ix> --commit <sha> --check   # --anchor-url and --anchor-data-hash for the vote
 npm start -- list
 ```
 
@@ -75,6 +77,7 @@ src/analyse.ts            gov analyse: store -> prompt -> model -> checks -> fil
 src/model.ts              the one place the model is called (Anthropic SDK; injectable)
 src/review.ts             gov review: decision.json, final rationale + anchor hash, signatures
 src/signing.ts            analysis key (PKCS#8), alma-core issuer-signature shape, verifyRecord
+src/publish.ts            gov publish (votes/ + README index), gov anchor (immutable URL + hash check), gov hash
 prompts/analyse.v1.md     the system prompt, versioned
 src/cli.ts                gov ingest | list
 test/                     fixtures recorded; nothing touches the network
@@ -83,7 +86,7 @@ test/                     fixtures recorded; nothing touches the network
 ## Tests
 
 ```bash
-npm test      # 26 tests, offline (the model is simulated)
+npm test      # 28 tests, offline (the model is simulated)
 CONSTITUTION_FILE=path/to/cardano-constitution-2.txt npm test   # also gate 2: full text hashes to the on-chain anchor
 npm run lint
 ```
@@ -126,6 +129,8 @@ first five analyses cold) is a process, not code.
   still have to hash to the on-chain anchor hash, so a lying gateway yields
   a mismatch, never a false "verified". `check.json` records `fetchedFrom`.
   Unset, `ipfs://` anchors are recorded as unavailable.
+- The static site and weekly digest from `votes/` (end of G1.5) are not
+  built; `votes/README.md` is the index for now.
 - No event is emitted yet: `events/schemas/cardano.gov.action_observed.json`
   is the contract, and emitting it waits for `alma-attestation/1` in
   `alma-core` and an SDK method for attestations about external subjects.

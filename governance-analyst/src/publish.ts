@@ -1,0 +1,189 @@
+import { copyFile, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { anchorDigest, fetchAnchor } from "./anchor.js";
+import type { AnalysisRecord } from "./analysis.js";
+import type { DecisionRecord } from "./review.js";
+import type { ActionStore } from "./store.js";
+
+/**
+ * G1.5: publish. The record of record is `cardano-governance/votes/`:
+ * one directory per action with the analysis, the decision, the final
+ * rationale and the signatures, plus a README index generated from them.
+ * The static site and the weekly digest come from the same files.
+ *
+ * Publishing is copying files into a git checkout; committing is the
+ * human's (`policies/ai-use.md`: published as it stood when decided).
+ * `anchorUrl` turns a commit sha into the immutable raw URL the vote's
+ * anchor must point at, and re-checks the hash (test plan gate 7).
+ */
+
+const PUBLISHED = ["analysis.json", "analysis.md", "decision.json", "rationale.jsonld", "analysis.sig.json", "decision.sig.json"] as const;
+
+export interface PublishOptions {
+  /** Checkout of AdaSouls/cardano-governance. */
+  governanceDir: string;
+  /** Only actions with a decision, unless `includeUndecided`. */
+  includeUndecided?: boolean;
+  log?: (line: string) => void;
+}
+
+export interface PublishedAction {
+  key: string;
+  actionId: string;
+  type: string;
+  vote?: DecisionRecord["vote"];
+  decidedAt?: string;
+  rationaleHash?: string;
+  files: string[];
+}
+
+export async function publish(actions: ActionStore, options: PublishOptions): Promise<PublishedAction[]> {
+  const log = options.log ?? (() => {});
+  const votesDir = path.join(options.governanceDir, "votes");
+  await mkdir(votesDir, { recursive: true });
+  const out: PublishedAction[] = [];
+  for (const key of await actions.keys()) {
+    const dir = actions.dir(key);
+    const analysis = await readJson<AnalysisRecord>(path.join(dir, "analysis.json"));
+    if (!analysis) continue;
+    const decision = await readJson<DecisionRecord>(path.join(dir, "decision.json"));
+    if (!decision && !options.includeUndecided) {
+      log(`skip        ${key}  analysed, not decided (policy: publish with the decision)`);
+      continue;
+    }
+    const onchain = await actions.readOnchain(key);
+    const target = path.join(votesDir, key);
+    await mkdir(target, { recursive: true });
+    const copied: string[] = [];
+    for (const f of PUBLISHED) {
+      const src = path.join(dir, f);
+      if (await exists(src)) {
+        await copyFile(src, path.join(target, f));
+        copied.push(f);
+      }
+    }
+    out.push({
+      key,
+      actionId: analysis.actionId,
+      type: onchain?.proposal_type ?? "?",
+      vote: decision?.vote,
+      decidedAt: decision?.decidedAt,
+      rationaleHash: decision?.rationale.anchorHash,
+      files: copied,
+    });
+    log(`published   ${key}  ${decision ? `${decision.vote} (${decision.decidedAt})` : "undecided"}  ${copied.length} files`);
+  }
+  await writeFile(path.join(votesDir, "README.md"), renderIndex(await collectIndex(votesDir)));
+  return out;
+}
+
+interface IndexRow {
+  key: string;
+  actionId: string;
+  type: string;
+  vote: string;
+  decidedAt: string;
+  rationaleHash: string;
+  hasSignatures: boolean;
+}
+
+async function collectIndex(votesDir: string): Promise<IndexRow[]> {
+  const rows: IndexRow[] = [];
+  for (const key of (await readdir(votesDir)).sort()) {
+    const dir = path.join(votesDir, key);
+    if (!(await stat(dir)).isDirectory()) continue;
+    const analysis = await readJson<AnalysisRecord>(path.join(dir, "analysis.json"));
+    if (!analysis) continue;
+    const decision = await readJson<DecisionRecord>(path.join(dir, "decision.json"));
+    const onchain = await readJson<{ proposal_type?: string }>(path.join(dir, "onchain.json"));
+    rows.push({
+      key,
+      actionId: analysis.actionId,
+      type: onchain?.proposal_type ?? typeFromMarkdown(await readFile(path.join(dir, "analysis.md"), "utf8").catch(() => "")),
+      vote: decision?.vote ?? "—",
+      decidedAt: decision?.decidedAt?.slice(0, 10) ?? "—",
+      rationaleHash: decision?.rationale.anchorHash ?? "—",
+      hasSignatures: await exists(path.join(dir, "decision.sig.json")),
+    });
+  }
+  return rows.sort((a, b) => (b.decidedAt > a.decidedAt ? 1 : b.decidedAt < a.decidedAt ? -1 : 0));
+}
+
+const typeFromMarkdown = (md: string) => /^# (\w+) ·/.exec(md)?.[1] ?? "?";
+
+export function renderIndex(rows: IndexRow[]): string {
+  const header = `# Votes
+
+Every governance action AdaSouls analysed, how we voted and why. Each
+directory holds \`analysis.md\` (the AI analysis, as it stood when the
+decision was made), \`decision.json\` (who decided what, when),
+\`rationale.jsonld\` (the CIP-100 rationale anchored with the vote) and,
+when signed, \`analysis.sig.json\` / \`decision.sig.json\` (Ed25519 by the
+AdaSouls analysis key). How we work: [policies/ai-use.md](../policies/ai-use.md),
+[policies/conflict-of-interest.md](../policies/conflict-of-interest.md).
+
+Generated by \`gov publish\` from the analyst's data; do not edit by hand.
+
+| Decided | Type | Action | Vote | Rationale hash | Signed |
+| --- | --- | --- | --- | --- | --- |
+`;
+  const lines = rows.map(
+    (r) => `| ${r.decidedAt} | ${r.type} | [\`${r.actionId.slice(0, 22)}…\`](./${r.key}/analysis.md) | **${r.vote}** | ${r.rationaleHash === "—" ? "—" : `\`${r.rationaleHash.slice(0, 16)}…\``} | ${r.hasSignatures ? "yes" : "no"} |`
+  );
+  return header + (lines.length ? lines.join("\n") : "| — | — | nothing published yet | — | — | — |") + "\n";
+}
+
+// ---------- the anchor URL for the vote ----------
+
+export interface AnchorUrlOptions {
+  repo?: string; // owner/name
+  branchOrCommit: string;
+  fetch?: typeof fetch;
+  check?: boolean;
+}
+
+export interface AnchorUrlResult {
+  url: string;
+  expectedHash: string;
+  check?: "verified" | "mismatch" | "unavailable";
+  detail?: string;
+}
+
+/** The immutable URL a vote should anchor: raw file at a commit sha, never at `main`. */
+export async function anchorUrl(key: string, actions: ActionStore, options: AnchorUrlOptions): Promise<AnchorUrlResult> {
+  const decision = await readJson<DecisionRecord>(path.join(actions.dir(key), "decision.json"));
+  if (!decision) throw new Error(`no decision for ${key}; run \`gov review\` first`);
+  const repo = options.repo ?? "AdaSouls/cardano-governance";
+  const url = `https://raw.githubusercontent.com/${repo}/${options.branchOrCommit}/votes/${key}/rationale.jsonld`;
+  const result: AnchorUrlResult = { url, expectedHash: decision.rationale.anchorHash };
+  if (!/^[0-9a-f]{40}$/.test(options.branchOrCommit)) result.detail = "not a commit sha: the content at this URL can change; use the sha for the vote";
+  if (options.check) {
+    const fetched = await fetchAnchor(url, decision.rationale.anchorHash, { fetch: options.fetch });
+    result.check = fetched.check.status === "none" ? "unavailable" : fetched.check.status;
+    if (fetched.check.status === "mismatch") result.detail = `published bytes hash to ${fetched.check.digest}`;
+    if (fetched.check.status === "unavailable") result.detail = fetched.check.reason;
+  }
+  return result;
+}
+
+/** Re-hash a local rationale file: what `cardano-cli hash anchor-data --file-text` prints. */
+export async function hashFile(file: string): Promise<string> {
+  return anchorDigest(new Uint8Array(await readFile(file)));
+}
+
+async function readJson<T>(file: string): Promise<T | undefined> {
+  try {
+    return JSON.parse(await readFile(file, "utf8")) as T;
+  } catch {
+    return undefined;
+  }
+}
+
+async function exists(file: string): Promise<boolean> {
+  try {
+    await stat(file);
+    return true;
+  } catch {
+    return false;
+  }
+}

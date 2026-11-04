@@ -8,6 +8,7 @@ import { AnalysisRejected, loadSystemPrompt } from "./analysis.js";
 import { analyseAction } from "./analyse.js";
 import { syncConstitution } from "./constitution-sync.js";
 import { anthropicCompleter } from "./model.js";
+import { anchorUrl, hashFile, publish } from "./publish.js";
 import { decidedByFromEscalation, reviewAction, type Vote } from "./review.js";
 import { generateKeyFile, loadSigner } from "./signing.js";
 import { ingest } from "./ingest.js";
@@ -22,6 +23,9 @@ import { ActionStore, ConstitutionStore } from "./store.js";
  * gov review <tx>-<ix> --vote Yes|No|Abstain --reason "..." [--comment-file f]
  *                         the human's decision: final rationale + its anchor hash, decision.json, signatures
  * gov keygen <file>       a new analysis key (PKCS#8); prints kid and public key, never the private key
+ * gov publish [--all]     copy decided actions into cardano-governance/votes/ and regenerate its README
+ * gov anchor <tx>-<ix> --commit <sha> [--check]   the immutable raw URL for the vote's anchor, and its hash
+ * gov hash <file>         blake2b-256 of a file (= cardano-cli hash anchor-data --file-text)
  *
  * Later phases add
  * `gov review <tx>-<ix>` and `gov publish`. None of them ever builds or
@@ -145,6 +149,39 @@ async function main(argv: string[]): Promise<number> {
       console.log(`analysis key written to ${file} (mode 600). Publish these, keep the file private:\n  kid: ${kid}\n  public key (hex): ${publicKeyHex}`);
       return 0;
     }
+    case "publish": {
+      const governanceDir = env("GOVERNANCE_DIR");
+      if (!governanceDir) {
+        console.error("set GOVERNANCE_DIR to a checkout of AdaSouls/cardano-governance");
+        return 1;
+      }
+      const published = await publish(store, { governanceDir, includeUndecided: rest.includes("--all"), log: (line) => console.log(line) });
+      console.log(`\n${published.length} action(s) in ${path.join(governanceDir, "votes")}. Review the diff, commit, then \`gov anchor <key> --commit <sha> --check\`.`);
+      return 0;
+    }
+    case "anchor": {
+      const key = rest.find((a) => !a.startsWith("--"));
+      const i = rest.indexOf("--commit");
+      const commit = i >= 0 ? rest[i + 1] : undefined;
+      if (!key || !commit) {
+        console.error("usage: gov anchor <tx>-<ix> --commit <sha> [--check]");
+        return 1;
+      }
+      const r = await anchorUrl(key, store, { branchOrCommit: commit, check: rest.includes("--check"), repo: env("GOVERNANCE_REPO") });
+      console.log(`--anchor-url ${r.url}`);
+      console.log(`--anchor-data-hash ${r.expectedHash}`);
+      if (r.check) console.log(`check: ${r.check}${r.detail ? ` (${r.detail})` : ""}`);
+      else if (r.detail) console.log(`warning: ${r.detail}`);
+      return r.check === "mismatch" ? 2 : 0;
+    }
+    case "hash": {
+      if (!rest[0]) {
+        console.error("usage: gov hash <file>");
+        return 1;
+      }
+      console.log(await hashFile(rest[0]));
+      return 0;
+    }
     case "list": {
       const keys = await store.keys();
       if (keys.length === 0) {
@@ -159,7 +196,7 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     default:
-      console.error("usage: gov <ingest [--all] | constitution | analyse <tx>-<ix> | review <tx>-<ix> --vote V --reason R | keygen <file> | list>");
+      console.error("usage: gov <ingest [--all] | constitution | analyse <key> | review <key> --vote V --reason R | publish [--all] | anchor <key> --commit <sha> [--check] | hash <file> | keygen <file> | list>");
       return 1;
   }
 }
