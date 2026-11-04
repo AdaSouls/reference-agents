@@ -56,7 +56,7 @@ export async function analyseAction(
   log(`analysing ${key} (${facts.type}) with ${options.completer.model}; anchor ${facts.anchor.status}; document ${document.format}`);
 
   const answer = await options.completer.complete(prompt.system, prompt.user);
-  const analysis = validateAnalysis(parseModelJson(answer), facts, split);
+  const analysis = validateAnalysis(parseModelJson(answer), facts, split, document);
 
   const record: AnalysisRecord = {
     v: "alma-governance-analysis/draft-1",

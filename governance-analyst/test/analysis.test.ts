@@ -93,6 +93,20 @@ describe("checks on the model's answer", () => {
     expect(checkFigures(invented, facts).some((x) => x.includes("250,000"))).toBe(true);
   });
 
+  it("accepts figures the proposer states, if they appear in the document, and marks them as claimed", async () => {
+    const p = await fixtureProposal(1);
+    const facts = buildFacts(p, { key: "k", proposalId: p.proposal_id, checkedAt: "", anchorUrl: null, anchorHash: null, anchor: { status: "none" } });
+    const document = describeProposalDocument(new TextEncoder().encode(JSON.stringify({ body: { title: "t", abstract: "Paid in tranches of 2,000,000 ADA and 1,800,000 ADA, capped at $2.88 million.", motivation: "m", rationale: "r" } })));
+    const ok = { ...goodAnalysis(), budgetNotes: "The proposal states tranches of 2000000 ADA and 1800000 ADA.", figures: [...goodAnalysis().figures, { label: "tranche 1, as stated", value: "2000000 ADA", source: "DOCUMENT.abstract" }, { label: "tranche 2, as stated", value: "1,800,000 ADA", source: "DOCUMENT.abstract" }] };
+    expect(checkFigures(ok, facts, document)).toEqual([]);
+    const notThere = { ...ok, figures: [...ok.figures, { label: "made up", value: "999999 ADA", source: "DOCUMENT.abstract" }] };
+    expect(checkFigures(notThere, facts, document)[0]).toContain("does not appear in DOCUMENT.abstract");
+    const badField = { ...ok, figures: [...ok.figures, { label: "x", value: "2000000", source: "DOCUMENT.footer" }] };
+    expect(checkFigures(badField, facts, document)[0]).toContain("does not resolve");
+    // Without the document, a DOCUMENT figure cannot be checked.
+    expect(checkFigures(ok, facts)[0]).toContain("is not in the proposal document");
+  });
+
   it("rejects citations of sections that do not exist in this Constitution version", async () => {
     const c = await constitution();
     const ok = goodAnalysis();
