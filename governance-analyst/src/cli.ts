@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 import "dotenv/config";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+import { syncConstitution } from "./constitution-sync.js";
 import { ingest } from "./ingest.js";
 import { KoiosClient } from "./koios.js";
-import { ActionStore } from "./store.js";
+import { ActionStore, ConstitutionStore } from "./store.js";
 
 /**
  * gov ingest [--all]      list governance actions, verify anchors, store them
  * gov list                what is stored, with each anchor's verdict
+ * gov constitution        the Constitution in force, verified and split into citable sections
  *
- * Later phases add `gov constitution`, `gov analyse <tx>-<ix>`,
+ * Later phases add `gov analyse <tx>-<ix>`,
  * `gov review <tx>-<ix>` and `gov publish`. None of them ever builds or
  * submits a transaction (agent.yaml, security.md).
  */
@@ -42,6 +44,25 @@ async function main(argv: string[]): Promise<number> {
       );
       return summary.mismatch > 0 ? 2 : 0;
     }
+    case "constitution": {
+      const koios = new KoiosClient({ baseUrl: env("KOIOS_BASE_URL"), apiKey: env("KOIOS_API_KEY") });
+      const result = await syncConstitution(koios, new ConstitutionStore(env("DATA_DIR", "./data")!), {
+        anchor: {
+          maxBytes: Number(env("ANCHOR_MAX_BYTES", "2000000")),
+          timeoutMs: Number(env("ANCHOR_TIMEOUT_MS", "20000")),
+          ipfsGateway: env("IPFS_GATEWAY"),
+        },
+        mirrors: (env("CONSTITUTION_MIRRORS") ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+        log: (line) => console.log(line),
+      });
+      if (result.status === "verified") return 0;
+      if (result.status === "no-anchor") {
+        console.error("no enacted NewConstitution action found");
+        return 1;
+      }
+      console.error(`constitution ${result.status}: no source produced bytes matching ${result.anchor.hash}`);
+      return result.status === "mismatch" ? 2 : 1;
+    }
     case "list": {
       const keys = await store.keys();
       if (keys.length === 0) {
@@ -56,7 +77,7 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     default:
-      console.error("usage: gov <ingest [--all] | list>");
+      console.error("usage: gov <ingest [--all] | constitution | list>");
       return 1;
   }
 }

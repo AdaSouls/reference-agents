@@ -1,0 +1,155 @@
+[
+ {
+  "block_time": 1766027860,
+  "proposal_id": "gov_action1jxne7hynfd7frcczwumd2eggps4kvy0msjztz9t0mutpy870ksgqqp6vp3p",
+  "proposal_tx_hash": "91a79f5c934b7c91e3027736d565080c2b6611fb8484b1156fdf16121fcfb410",
+  "proposal_index": 0,
+  "proposal_type": "NewConstitution",
+  "proposal_description": {
+   "tag": "NewConstitution",
+   "contents": [
+    {
+     "txId": "8c653ee5c9800e6d31e79b5a7f7d4400c81d44717ad4db633dc18d4c07e4a4fd",
+     "govActionIx": 0
+    },
+    {
+     "anchor": {
+      "url": "ipfs://bafkreieyuknozbtewyurfqoagvplvykadn6a4u6wglupavdz46bbsnnl6e",
+      "dataHash": "b368bdad83c727bbfe86425575233fb914eb76d05d89497f7790cf007fd95f52"
+     },
+     "script": "fa24fb305126805cf2164c161d852a0e7330cf988f1fe558cf7d4a64"
+    }
+   ]
+  },
+  "previous_gov_action_proposal_id": "gov_action133jnaewfsq8x6v08ndd87l2yqryp63r30t2dkceacxx5cply5n7sqzlcyqf",
+  "deposit": "100000000000",
+  "return_address": "stake1uy5mx9230r5c0a8tp69kpw6773ycm9spghazx9t8gnyfzgs8ymlec",
+  "proposed_epoch": 601,
+  "ratified_epoch": 608,
+  "enacted_epoch": 609,
+  "dropped_epoch": null,
+  "expired_epoch": null,
+  "expiration": 608,
+  "meta_url": "ipfs://bafkreigxpweqv2rnh7ajt5hzdq6gikogmaq3nbyof5uvdntc4hkg52ghqy",
+  "meta_hash": "6c5645b67cca1f39323984f97ea2d5f5a68423c592407e241b0637e26d244591",
+  "meta_comment": null,
+  "meta_language": "en-us",
+  "meta_is_valid": true,
+  "withdrawal": [],
+  "param_proposal": null
+ },
+ {
+  "block_time": 1759498085,
+  "proposal_id": "gov_action1ezp0r9rgf4njx93p9uq7l3kjs9m739jm0ntf26vplcmucec4jc0qqxjlfrc",
+  "proposal_tx_hash": "c882f194684d672316212f01efc6d28177e8965b7cd6956981fe37cc6715961e",
+  "proposal_index": 0,
+  "proposal_type": "NewConstitution",
+  "proposal_description": {
+   "tag": "NewConstitution",
+   "contents": [
+    {
+     "txId": "8c653ee5c9800e6d31e79b5a7f7d4400c81d44717ad4db633dc18d4c07e4a4fd",
+     "govActionIx": 0
+    },
+    {
+     "anchor": {
+      "url": "ipfs://bafkreibyaftvpujgjernbcj2rgrwg3fntsg37cxx5bdgpy4hyt4eki5r2e",
+      "dataHash": "9fc568bb8ae398ff2e9b1cf7ca459c3648f865338a70248dd753aea175b0d4d4"
+     },
+     "script": "fa24fb305126805cf2164c161d852a0e7330cf988f1fe558cf7d4a64"
+    }
+   ]
+  },
+  "previous_gov_action_proposal_id": "gov_action133jnaewfsq8x6v08ndd87l2yqryp63r30t2dkceacxx5cply5n7sqzlcyqf",
+  "deposit": "100000000000",
+  "return_address": "stake1uy5mx9230r5c0a8tp69kpw6773ycm9spghazx9t8gnyfzgs8ymlec",
+  "proposed_epoch": 586,
+  "ratified_epoch": null,
+  "enacted_epoch": null,
+  "dropped_epoch": 594,
+  "expired_epoch": 593,
+  "expiration": 593,
+  "meta_url": "ipfs://bafkreig4ural237c4gczp4srzygsmlaquiibixiskus2lwy4a6vilivgiy",
+  "meta_hash": "bbdd72333d18e36283ef8cfd8959a9382c90a1fd864845ed62120882455aa8fb",
+  "meta_comment": null,
+  "meta_language": "en-us",
+  "meta_is_valid": true,
+  "withdrawal": [],
+  "param_proposal": null
+ },
+ {
+  "block_time": 1754320120,
+  "proposal_id": "gov_action1ypajyms3pcfmkx93r87dxy6jpc8u6pst90ylhxj7t0rwjj43puasq0x9jrw",
+  "proposal_tx_hash": "207b226e110e13bb18b119fcd313520e0fcd060b2bc9fb9a5e5bc6e94ab10f3b",
+  "proposal_index": 0,
+  "proposal_type": "NewConstitution",
+  "proposal_description": {
+   "tag": "NewConstitution",
+   "contents": [
+    {
+     "txId": "8c653ee5c9800e6d31e79b5a7f7d4400c81d44717ad4db633dc18d4c07e4a4fd",
+     "govActionIx": 0
+    },
+    {
+     "anchor": {
+      "url": "ipfs://bafkreiat3w662d6jnsuz2kpra2h5ve4xxij4jkl7kylf7jk6gw43q5b5ny",
+      "dataHash": "170379f4c41a1833743837770e5bdb034c089a8edc835174e73a9c5b692676cc"
+     },
+     "script": "fa24fb305126805cf2164c161d852a0e7330cf988f1fe558cf7d4a64"
+    }
+   ]
+  },
+  "previous_gov_action_proposal_id": "gov_action133jnaewfsq8x6v08ndd87l2yqryp63r30t2dkceacxx5cply5n7sqzlcyqf",
+  "deposit": "100000000000",
+  "return_address": "stake1uy5mx9230r5c0a8tp69kpw6773ycm9spghazx9t8gnyfzgs8ymlec",
+  "proposed_epoch": 574,
+  "ratified_epoch": null,
+  "enacted_epoch": null,
+  "dropped_epoch": 582,
+  "expired_epoch": 581,
+  "expiration": 581,
+  "meta_url": "ipfs://bafkreig4vjv636y7yhc3va6u4u6euluzs7wxwas5ntwqrvyzafjnnbcsgu",
+  "meta_hash": "37669749785f79cb3eb5005779095fbd733156bdaf9e20e55f7d233cb5946874",
+  "meta_comment": null,
+  "meta_language": "en-us",
+  "meta_is_valid": true,
+  "withdrawal": [],
+  "param_proposal": null
+ },
+ {
+  "block_time": 1738257458,
+  "proposal_id": "gov_action133jnaewfsq8x6v08ndd87l2yqryp63r30t2dkceacxx5cply5n7sqzlcyqf",
+  "proposal_tx_hash": "8c653ee5c9800e6d31e79b5a7f7d4400c81d44717ad4db633dc18d4c07e4a4fd",
+  "proposal_index": 0,
+  "proposal_type": "NewConstitution",
+  "proposal_description": {
+   "tag": "NewConstitution",
+   "contents": [
+    null,
+    {
+     "anchor": {
+      "url": "ipfs://bafkreiazhhawe7sjwuthcfgl3mmv2swec7sukvclu3oli7qdyz4uhhuvmy",
+      "dataHash": "2a61e2f4b63442978140c77a70daab3961b22b12b63b13949a390c097214d1c5"
+     },
+     "script": "fa24fb305126805cf2164c161d852a0e7330cf988f1fe558cf7d4a64"
+    }
+   ]
+  },
+  "previous_gov_action_proposal_id": null,
+  "deposit": "100000000000",
+  "return_address": "stake1uyguuqwdpexmhgjd07vax5t2ay3f7qvea49ex907g6fmvjclq6l03",
+  "proposed_epoch": 537,
+  "ratified_epoch": 541,
+  "enacted_epoch": 542,
+  "dropped_epoch": null,
+  "expired_epoch": null,
+  "expiration": 544,
+  "meta_url": "ipfs://bafkreiehcekhhsq34ccezwn46brg3euj6tbs4g4yjkav34ukqvbnzaya2a",
+  "meta_hash": "d085e5af96521ae2670400e76c3a1e4b4eb902139ddaa83bde7580e7e9d7ddec",
+  "meta_comment": null,
+  "meta_language": "en",
+  "meta_is_valid": true,
+  "withdrawal": [],
+  "param_proposal": null
+ }
+]

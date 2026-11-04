@@ -71,3 +71,77 @@ export class ActionStore {
     }
   }
 }
+
+// ---------- constitution ----------
+
+export interface ConstitutionSourceRecord {
+  hash: string;
+  anchorUrl: string;
+  fetchedFrom?: string;
+  actionKey: string;
+  proposalId: string;
+  enactedEpoch: number;
+  guardrailsScript?: string;
+  verifiedAt: string;
+  bytes: number;
+  sections: number;
+  guardrails: number;
+}
+
+/**
+ * `data/constitution/<anchor hash>/`:
+ *   constitution.md   the bytes, exactly as anchored
+ *   sections.json     the split (ids analyses cite)
+ *   source.json       where it came from and when it was verified
+ *   current           (at data/constitution/current) the hash in force
+ *
+ * A new Constitution is a new directory; old analyses keep pointing at the
+ * version they cited.
+ */
+export class ConstitutionStore {
+  constructor(private readonly dataDir: string) {}
+
+  dir(hash: string): string {
+    return path.join(this.dataDir, "constitution", hash);
+  }
+
+  async save(hash: string, bytes: Uint8Array, split: unknown, source: ConstitutionSourceRecord): Promise<void> {
+    await mkdir(this.dir(hash), { recursive: true });
+    await writeFile(path.join(this.dir(hash), "constitution.md"), bytes);
+    await writeFile(path.join(this.dir(hash), "sections.json"), JSON.stringify(split, null, 2) + "\n");
+    await writeFile(path.join(this.dir(hash), "source.json"), JSON.stringify(source, null, 2) + "\n");
+    await writeFile(path.join(this.dataDir, "constitution", "current"), hash + "\n");
+  }
+
+  async currentHash(): Promise<string | undefined> {
+    try {
+      return (await readFile(path.join(this.dataDir, "constitution", "current"), "utf8")).trim() || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async readSource(hash: string): Promise<ConstitutionSourceRecord | undefined> {
+    try {
+      return JSON.parse(await readFile(path.join(this.dir(hash), "source.json"), "utf8")) as ConstitutionSourceRecord;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async readSections<T = unknown>(hash: string): Promise<T | undefined> {
+    try {
+      return JSON.parse(await readFile(path.join(this.dir(hash), "sections.json"), "utf8")) as T;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async readText(hash: string): Promise<string | undefined> {
+    try {
+      return await readFile(path.join(this.dir(hash), "constitution.md"), "utf8");
+    } catch {
+      return undefined;
+    }
+  }
+}
