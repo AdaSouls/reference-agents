@@ -23,7 +23,7 @@ export function documentFieldText(document: ProposalDocument, field: DocumentFie
  * Prompts are versioned files under prompts/ (STANDARD.md rule 7).
  */
 
-export const PROMPT_VERSION = "analyse.v1";
+export const PROMPT_VERSION = "analyse.v2";
 
 export const analysisSchema = z
   .object({
@@ -208,13 +208,29 @@ export function checkFigures(analysis: Analysis, facts: Facts, document?: Propos
       problems.push(`figure "${f.label}": value "${f.value}" does not match ${f.source} = ${String(v)}`);
     }
   }
-  // Numbers of money size that appear in the prose must be among the figures.
-  const cited = new Set(analysis.figures.map((f) => normaliseNumber(f.value.replace(/[^0-9.,]/g, ""))).filter(Boolean));
+  // Every amount, price or percentage in the prose must be among the sourced
+  // figures: large numbers (5+ digits, or grouped 1,000,000), anything with a
+  // currency or a % next to it, and "1.5 million" / "1.49M" style amounts.
+  const cited = new Set(
+    analysis.figures.flatMap((f) => Array.from(f.value.matchAll(/\d[\d,._]*\d|\d/g), (m) => normaliseNumber(m[0]))).filter(Boolean)
+  );
+  const known = (n: string) => cited.has(n) || [...cited].some((c) => c.replace(/\..*$/, "") === n.replace(/\..*$/, ""));
   const prose = [analysis.summary, analysis.whatChangesIfPassed, analysis.budgetNotes, ...analysis.argumentsFor, ...analysis.argumentsAgainst, ...analysis.tensions, analysis.suggestedVote.reason].join("\n");
-  for (const m of prose.matchAll(/\b\d{1,3}(?:[,.]\d{3})+(?:\.\d+)?\b|\b\d{5,}(?:\.\d+)?\b/g)) {
-    const n = normaliseNumber(m[0]);
-    if (!cited.has(n) && ![...cited].some((c) => c.replace(/\..*$/, "") === n.replace(/\..*$/, ""))) {
-      problems.push(`amount "${m[0]}" appears in the text but is not among the sourced figures`);
+  const patterns = [
+    /\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d{5,}(?:\.\d+)?\b/g, // 1,800,000 / 9600000
+    /(?:USD|US\$|\$|₳|ADA)\s?(\d[\d,]*(?:\.\d+)?)/g, // USD 0.30, $2.88, ₳22
+    /(\d[\d,]*(?:\.\d+)?)\s?(?:%|percent\b|per cent\b)/g, // 70%, 4.92 percent
+    /(\d[\d,]*(?:\.\d+)?)\s?(?:ADA|USD|lovelace)\b/g, // 200000 ADA
+    /(\d+(?:\.\d+)?)\s?(?:million|M|billion|bn|k)\b/g, // 1.5 million, 1.49M
+  ];
+  const seen = new Set<string>();
+  for (const re of patterns) {
+    for (const m of prose.matchAll(re)) {
+      const raw = m[1] ?? m[0];
+      const n = normaliseNumber(raw);
+      if (seen.has(`${re.source}|${m.index}`) || known(n)) continue;
+      seen.add(`${re.source}|${m.index}`);
+      problems.push(`amount "${m[0].trim()}" appears in the text but is not among the sourced figures`);
     }
   }
   return problems;
@@ -225,6 +241,13 @@ export function checkCitations(analysis: Analysis, constitution: SplitConstituti
   const ids = new Set([...constitution.sections.map((s) => s.id), ...constitution.guardrails.map((g) => g.id)]);
   const problems: string[] = [];
   for (const c of analysis.constitutionSections) if (!ids.has(c.id)) problems.push(`constitution id "${c.id}" does not exist in this version`);
+  // A guardrail or section id named anywhere in the text must exist too, not only in constitutionSections.
+  const text = JSON.stringify({ ...analysis, figures: undefined });
+  const named = new Set([
+    ...Array.from(text.matchAll(/\b[A-Z]{2,16}-\d{2}[a-z]?\b/g), (m) => m[0]),
+    ...Array.from(text.matchAll(/\b(?:art|app)-\d+(?:-(?:sec|s)\d+(?:-\d+)*)?\b/g), (m) => m[0]),
+  ]);
+  for (const id of named) if (!ids.has(id)) problems.push(`"${id}" is named in the text but does not exist in this Constitution version`);
   return problems;
 }
 

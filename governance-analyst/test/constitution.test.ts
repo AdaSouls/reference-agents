@@ -69,6 +69,9 @@ describe("splitting", () => {
     expect(split.sections.filter((s) => s.level === 0).map((s) => s.id)).toEqual(["preamble", "defined-terms", "art-1", "art-2", "art-3", "art-4", "app-1", "app-2"]);
     expect(split.sections.find((s) => s.id === "art-2-sec-7")?.title).toContain("Treasury Withdrawals");
     expect(split.guardrails.length).toBeGreaterThan(100);
+    // Long family names and partial markers: TREASURY-02a (x), HARDFORK-01 (~ - no access …).
+    expect(split.guardrails.find((g) => g.id === "TREASURY-02a")?.section).toBe("app-1-s3-guardrails");
+    expect(split.guardrails.find((g) => g.id === "HARDFORK-01")).toBeTruthy();
   });
 });
 

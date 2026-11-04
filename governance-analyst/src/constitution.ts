@@ -194,7 +194,10 @@ function headings(lines: string[]): Heading[] {
   return out;
 }
 
-const GUARDRAIL_RE = /^([A-Z]{2,6}-\d{2}[a-z]?)\s+(\((?:y|x|~)\))?\s*(.*)$/;
+// Labels are an UPPERCASE family, a dash, two digits and an optional letter:
+// PARAM-01, TFPB-02a, TREASURY-03a, HARDFORK-02a, NETCHANGE-01. The marker
+// after it is (y) checkable, (x) not, or (~ …) partly.
+const GUARDRAIL_RE = /^([A-Z]{2,16}-\d{2}[a-z]?)\s+(\((?:y|x|~)[^)]*\))?\s*(.*)$/;
 
 export function splitConstitution(text: string): SplitConstitution {
   const lines = text.split(/\r?\n/);

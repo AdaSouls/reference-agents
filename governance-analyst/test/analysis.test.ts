@@ -107,12 +107,33 @@ describe("checks on the model's answer", () => {
     expect(checkFigures(ok, facts)[0]).toContain("is not in the proposal document");
   });
 
+  it("catches unsourced percentages, prices and 'million' amounts in prose, not only big numbers", async () => {
+    const p = await fixtureProposal(1);
+    const facts = buildFacts(p, { key: "k", proposalId: p.proposal_id, checkedAt: "", anchorUrl: null, anchorHash: null, anchor: { status: "none" } });
+    const ok = goodAnalysis();
+    for (const [text, bad] of [
+      ["Budget is 28% infrastructure.", "28%"],
+      ["Capped at USD 0.30 per ADA.", "USD 0.30"],
+      ["About 1.5 million transactions a year.", "1.5 million"],
+      ["Catalyst funding of 1.49M ADA.", "1.49M"],
+      ["An admin fee of 200000 ADA.", "200000"],
+    ]) {
+      const problems = checkFigures({ ...ok, budgetNotes: text }, facts);
+      expect(problems.some((x) => x.includes(bad)), `${text} -> ${problems.join("; ")}`).toBe(true);
+    }
+    // Ordinary small numbers are not amounts: articles, months, counts.
+    expect(checkFigures({ ...ok, budgetNotes: "Article 2 Section 7 requires 6 things; five milestones over 15 months." }, facts)).toEqual([]);
+  });
+
   it("rejects citations of sections that do not exist in this Constitution version", async () => {
     const c = await constitution();
     const ok = goodAnalysis();
     expect(checkCitations(ok, c)).toEqual([]);
     const bad = { ...ok, constitutionSections: [{ id: "art-9-sec-9", relation: "governs" as const, note: "n" }] };
-    expect(checkCitations(bad, c)).toEqual(['constitution id "art-9-sec-9" does not exist in this version']);
+    expect(checkCitations(bad, c)).toContain('constitution id "art-9-sec-9" does not exist in this version');
+    // Ids named only in prose are checked too (PFMS: TREASURY-02a was cited in a note).
+    const inProse = { ...ok, tensions: ["Conflicts with PARAM-01 and with FAKE-99."] };
+    expect(checkCitations(inProse, c)).toEqual(['"FAKE-99" is named in the text but does not exist in this Constitution version']);
   });
 
   it("validateAnalysis names the failing gate", async () => {

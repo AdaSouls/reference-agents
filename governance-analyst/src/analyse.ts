@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { anchorDigest } from "./anchor.js";
-import { AnalysisRejected, buildPrompt, draftRationale, parseModelJson, renderMarkdown, validateAnalysis, type Analysis, type AnalysisRecord } from "./analysis.js";
+import { AnalysisRejected, PROMPT_VERSION, buildPrompt, draftRationale, parseModelJson, renderMarkdown, validateAnalysis, type Analysis, type AnalysisRecord } from "./analysis.js";
 import type { SplitConstitution } from "./constitution.js";
 import { buildFacts, describeProposalDocument, type Facts } from "./facts.js";
 import type { Completer, Turn } from "./model.js";
@@ -97,7 +97,7 @@ export async function analyseAction(
     key,
     actionId: facts.actionId,
     constitutionHash: hash,
-    promptVersion: "analyse.v1",
+    promptVersion: PROMPT_VERSION,
     model: options.completer.model,
     analysedAt: (options.now ?? (() => new Date()))().toISOString(),
     inputs: {
