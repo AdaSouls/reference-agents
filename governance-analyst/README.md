@@ -34,6 +34,7 @@ Its outputs go to that repository's `votes/`; its code lives here.
 npm install
 cp .env.example .env         # the public Koios endpoint needs no key
 npm start -- ingest          # open actions; add --all for closed ones too
+                             # honours HTTPS_PROXY; set NODE_EXTRA_CA_CERTS behind a TLS-inspecting proxy
 npm start -- list
 ```
 
@@ -76,8 +77,11 @@ npm run lint
 
 - One indexer (Koios). `security.md` names cross-checking against a second
   provider as the mitigation for a lying indexer; not built.
-- `ipfs://` anchors are recorded as unavailable until a gateway policy is
-  chosen (which gateway, and whether its bytes count as the anchor).
+- `ipfs://` anchors go through `IPFS_GATEWAY` (default in `.env.example`:
+  `https://ipfs.io/ipfs/`). The gateway is untrusted like any host: the bytes
+  still have to hash to the on-chain anchor hash, so a lying gateway yields
+  a mismatch, never a false "verified". `check.json` records `fetchedFrom`.
+  Unset, `ipfs://` anchors are recorded as unavailable.
 - No event is emitted yet: `events/schemas/cardano.gov.action_observed.json`
   is the contract, and emitting it waits for `alma-attestation/1` in
   `alma-core` and an SDK method for attestations about external subjects.

@@ -42,6 +42,7 @@ export async function ingestOne(
     anchorUrl: proposal.meta_url ?? null,
     anchorHash: proposal.meta_hash ?? null,
     anchor: fetched.check,
+    fetchedFrom: fetched.fetchedFrom !== proposal.meta_url ? fetched.fetchedFrom : undefined,
     contentType: fetched.contentType,
   };
   await store.saveCheck(key, record);

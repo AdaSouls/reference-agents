@@ -20,6 +20,8 @@ export interface ActionCheckRecord {
   anchorUrl: string | null;
   anchorHash: string | null;
   anchor: AnchorCheck;
+  /** Where the bytes came from when it differs from anchorUrl (an IPFS gateway). */
+  fetchedFrom?: string;
   contentType?: string;
 }
 

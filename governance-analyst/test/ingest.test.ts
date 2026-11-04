@@ -52,6 +52,17 @@ describe("anchor", () => {
     expect((await fetchAnchor("ipfs://bafy", h)).check.status).toBe("unavailable");
   });
 
+  it("fetches ipfs:// anchors through the configured gateway, and the hash still decides", async () => {
+    const h = "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426";
+    const gateway = (async (input: string | URL) => {
+      expect(String(input)).toBe("https://gw.example/ipfs/QmFixture/info-good.jsonld");
+      return new Response(await readFile(path.join(fixtures, "anchors", "info-good.jsonld")));
+    }) as unknown as typeof fetch;
+    const r = await fetchAnchor("ipfs://QmFixture/info-good.jsonld", h, { fetch: gateway, ipfsGateway: "https://gw.example/ipfs/" });
+    expect(r.check.status).toBe("verified");
+    expect(r.fetchedFrom).toBe("https://gw.example/ipfs/QmFixture/info-good.jsonld");
+  });
+
   it("refuses bodies over the size limit instead of hashing them", async () => {
     const r = await fetchAnchor("https://anchors.example/info-good.jsonld", "00".repeat(32), { fetch: fetchImpl, maxBytes: 10 });
     expect(r.check.status).toBe("unavailable");

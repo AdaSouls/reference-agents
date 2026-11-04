@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import "dotenv/config";
+import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
 import { ingest } from "./ingest.js";
 import { KoiosClient } from "./koios.js";
 import { ActionStore } from "./store.js";
@@ -13,6 +14,12 @@ import { ActionStore } from "./store.js";
  * submits a transaction (agent.yaml, security.md).
  */
 
+// Node's fetch ignores HTTP(S)_PROXY; honour it, as curl and the SDKs do, for
+// corporate and sandboxed networks. No proxy configured: nothing changes.
+if (process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY || process.env.http_proxy) {
+  setGlobalDispatcher(new EnvHttpProxyAgent());
+}
+
 const env = (name: string, fallback?: string): string | undefined => process.env[name]?.trim() || fallback;
 
 async function main(argv: string[]): Promise<number> {
@@ -23,7 +30,11 @@ async function main(argv: string[]): Promise<number> {
       const koios = new KoiosClient({ baseUrl: env("KOIOS_BASE_URL"), apiKey: env("KOIOS_API_KEY") });
       const summary = await ingest(koios, store, {
         all: rest.includes("--all"),
-        anchor: { maxBytes: Number(env("ANCHOR_MAX_BYTES", "2000000")), timeoutMs: Number(env("ANCHOR_TIMEOUT_MS", "20000")) },
+        anchor: {
+          maxBytes: Number(env("ANCHOR_MAX_BYTES", "2000000")),
+          timeoutMs: Number(env("ANCHOR_TIMEOUT_MS", "20000")),
+          ipfsGateway: env("IPFS_GATEWAY"),
+        },
         log: (line) => console.log(line),
       });
       console.log(
