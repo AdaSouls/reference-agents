@@ -15,7 +15,7 @@ Its outputs go to that repository's `votes/`; its code lives here.
 | 1. Ingest: list open actions on mainnet via Koios, download each anchor, check blake2b-256 against the on-chain hash, store everything under `data/actions/<tx>-<ix>/` | `gov ingest` | **done** (G1.1) |
 | 2. Constitution: the one in force (latest enacted `NewConstitution` action), bytes verified against its on-chain anchor hash, split into sections and guardrails with stable ids (`art-2-sec-7`, `app-1-s2-1`, `PARAM-03a`) | `gov constitution` | **done** (G1.2) |
 | 3. Analysis: one model call over verified facts, the Constitution in force and the proposer's document quoted as data; structured JSON checked before anything is written (every figure cites a `FACTS` path and matches it; every Constitution id exists), then `analysis.md` and a draft CIP-100 rationale | `gov analyse <tx>-<ix>` | **done** (G1.3) |
-| 4. Review: show the analysis, edit the rationale, record the human's Yes / No / Abstain and reason; compute the rationale's anchor hash like `cardano-cli hash anchor-data` | `gov review <tx>-<ix>` | G1.4 |
+| 4. Review: record the human's Yes / No / Abstain and reason (who may decide comes from `escalation.yaml`), write the final CIP-100 rationale from the draft, compute its anchor hash like `cardano-cli hash anchor-data --file-text` (blake2b-256 of the bytes), and sign analysis and decision with the analysis key (`gov keygen`) | `gov review <tx>-<ix> --vote … --reason …` | **done** (G1.4) |
 | 5. Publish: sign analysis and decision with the AdaSouls analysis key (Ed25519, alma-core issuer-signature format), emit `cardano.gov.analysis` and `cardano.gov.decision`, build the static site | `gov publish` | G1.5 |
 
 ## What it never does
@@ -37,6 +37,8 @@ npm start -- ingest          # open actions; add --all for closed ones too
                              # honours HTTPS_PROXY; set NODE_EXTRA_CA_CERTS behind a TLS-inspecting proxy
 npm start -- constitution   # the Constitution in force; IPFS_GATEWAY and CONSTITUTION_MIRRORS in .env
 npm start -- analyse <tx>-<ix>   # needs ANTHROPIC_API_KEY; exit 3 = the model's answer failed a check, nothing written
+npm start -- keygen .keys/analysis.key   # once; put the path in ANALYSIS_KEY_FILE, publish kid + public key
+npm start -- review <tx>-<ix> --vote No --reason "why"   # writes rationale.jsonld, decision.json, *.sig.json
 npm start -- list
 ```
 
@@ -71,6 +73,8 @@ src/facts.ts              the verified facts the model may cite; lovelace -> ADA
 src/analysis.ts           schema, prompt assembly, the checks (figures, citations), markdown + rationale draft
 src/analyse.ts            gov analyse: store -> prompt -> model -> checks -> files
 src/model.ts              the one place the model is called (Anthropic SDK; injectable)
+src/review.ts             gov review: decision.json, final rationale + anchor hash, signatures
+src/signing.ts            analysis key (PKCS#8), alma-core issuer-signature shape, verifyRecord
 prompts/analyse.v1.md     the system prompt, versioned
 src/cli.ts                gov ingest | list
 test/                     fixtures recorded; nothing touches the network
@@ -79,7 +83,7 @@ test/                     fixtures recorded; nothing touches the network
 ## Tests
 
 ```bash
-npm test      # 23 tests, offline (the model is simulated)
+npm test      # 26 tests, offline (the model is simulated)
 CONSTITUTION_FILE=path/to/cardano-constitution-2.txt npm test   # also gate 2: full text hashes to the on-chain anchor
 npm run lint
 ```
@@ -97,10 +101,21 @@ path it came from. `analysis.json` holds the same plus the digests of the
 inputs, the prompt version and the model. `rationale.draft.jsonld` is the
 CIP-100 draft the human edits in review.
 
+After `gov review`: `rationale.jsonld` (final, what gets anchored),
+`decision.json` (vote, reason, whether it agrees with the analysis, the
+analysis digest, the rationale's anchor hash, who decided, when) and, with
+`ANALYSIS_KEY_FILE`, `analysis.sig.json` and `decision.sig.json`: Ed25519
+envelopes in alma-core's issuer-signature shape (`t`, `iss`, `kid` inside
+the payload, JCS bytes signed). Types `alma-governance-analysis/draft-1`
+and `alma-governance-decision/draft-1` until G6.1 lands `alma-attestation/1`
+in `alma-core`; verifiable now with the published public key.
+
 Gates from the test plan covered in code: 3 (no invented figures), 4
 (prompt injection quoted as data, delimiter escapes neutralised), 5
-(citations resolve). Gate 6 (two humans read the first five analyses cold)
-is a process, not code.
+(citations resolve), 7 (rationale hash = blake2b-256 of the file bytes;
+confirm once against `cardano-cli hash anchor-data --file-text`), 11
+(analysis key separate from any chain key). Gate 6 (two humans read the
+first five analyses cold) is a process, not code.
 
 ## Known gaps
 

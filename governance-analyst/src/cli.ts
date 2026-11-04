@@ -8,6 +8,8 @@ import { AnalysisRejected, loadSystemPrompt } from "./analysis.js";
 import { analyseAction } from "./analyse.js";
 import { syncConstitution } from "./constitution-sync.js";
 import { anthropicCompleter } from "./model.js";
+import { decidedByFromEscalation, reviewAction, type Vote } from "./review.js";
+import { generateKeyFile, loadSigner } from "./signing.js";
 import { ingest } from "./ingest.js";
 import { KoiosClient } from "./koios.js";
 import { ActionStore, ConstitutionStore } from "./store.js";
@@ -17,6 +19,9 @@ import { ActionStore, ConstitutionStore } from "./store.js";
  * gov list                what is stored, with each anchor's verdict
  * gov constitution        the Constitution in force, verified and split into citable sections
  * gov analyse <tx>-<ix>   the analysis: facts + Constitution + the proposer's document -> model -> checks -> files
+ * gov review <tx>-<ix> --vote Yes|No|Abstain --reason "..." [--comment-file f]
+ *                         the human's decision: final rationale + its anchor hash, decision.json, signatures
+ * gov keygen <file>       a new analysis key (PKCS#8); prints kid and public key, never the private key
  *
  * Later phases add
  * `gov review <tx>-<ix>` and `gov publish`. None of them ever builds or
@@ -98,6 +103,48 @@ async function main(argv: string[]): Promise<number> {
         throw err;
       }
     }
+    case "review": {
+      const key = rest.find((a) => !a.startsWith("--"));
+      const flag = (name: string) => {
+        const i = rest.indexOf(`--${name}`);
+        return i >= 0 ? rest[i + 1] : undefined;
+      };
+      const vote = flag("vote") as Vote | undefined;
+      const reason = flag("reason");
+      if (!key || !vote || !["Yes", "No", "Abstain"].includes(vote) || !reason) {
+        console.error('usage: gov review <tx>-<ix> --vote Yes|No|Abstain --reason "why" [--comment-file rationale-comment.txt]');
+        return 1;
+      }
+      const here = path.dirname(fileURLToPath(import.meta.url));
+      const decidedBy = await decidedByFromEscalation(path.join(here, "..", "escalation.yaml"));
+      const keyFile = env("ANALYSIS_KEY_FILE");
+      const signer = keyFile ? await loadSigner(keyFile) : undefined;
+      if (!signer) console.log("ANALYSIS_KEY_FILE not set: the decision is recorded but not signed");
+      const commentFile = flag("comment-file");
+      const r = await reviewAction(key, store, {
+        vote,
+        reason,
+        rationaleComment: commentFile ? await readFile(commentFile, "utf8") : undefined,
+        decidedBy,
+        signer,
+      });
+      console.log(`decision: ${r.decision.vote} by ${decidedBy.person}${r.decision.agreesWithAnalysis ? "" : ` (analysis suggested ${r.decision.suggestedVote})`}`);
+      console.log(`rationale: ${r.files.rationale}`);
+      console.log(`anchor hash (= cardano-cli hash anchor-data --file-text): ${r.decision.rationale.anchorHash}`);
+      if (r.files.decisionSignature) console.log(`signed: ${r.files.analysisSignature}, ${r.files.decisionSignature} (kid ${signer!.kid})`);
+      console.log("next: publish rationale.jsonld at a fixed URL, then vote with the Ledger per cardano-governance/docs/runbooks/drep-vote.md");
+      return 0;
+    }
+    case "keygen": {
+      const file = rest[0];
+      if (!file) {
+        console.error("usage: gov keygen <path to new key file>");
+        return 1;
+      }
+      const { kid, publicKeyHex } = await generateKeyFile(file);
+      console.log(`analysis key written to ${file} (mode 600). Publish these, keep the file private:\n  kid: ${kid}\n  public key (hex): ${publicKeyHex}`);
+      return 0;
+    }
     case "list": {
       const keys = await store.keys();
       if (keys.length === 0) {
@@ -112,7 +159,7 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     default:
-      console.error("usage: gov <ingest [--all] | constitution | analyse <tx>-<ix> | list>");
+      console.error("usage: gov <ingest [--all] | constitution | analyse <tx>-<ix> | review <tx>-<ix> --vote V --reason R | keygen <file> | list>");
       return 1;
   }
 }
