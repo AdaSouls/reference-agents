@@ -218,12 +218,38 @@ describe("gov analyse end to end (model simulated)", () => {
     expect(rationale.body.references[0].uri).toContain(`votes/${key}/analysis.md`);
   });
 
-  it("writes nothing when the model invents a figure", async () => {
+  it("writes nothing when the model keeps inventing a figure", async () => {
     const { actions, constitutions, key } = await prepare();
     const completer = fake(() => ({ ...goodAnalysis(), budgetNotes: "Plus 5,000,000 ADA in year two." }));
     await expect(
       analyseAction(key, actions, constitutions, { system: "s", completer, conflictOfInterestPolicy: "" })
     ).rejects.toBeInstanceOf(AnalysisRejected);
+    expect(completer.prompts).toHaveLength(3);
     await expect(readFile(path.join(actions.dir(key), "analysis.json"))).rejects.toThrow();
+  });
+
+  it("sends a rejected answer back with the problems, and records the attempts", async () => {
+    const { actions, constitutions, key } = await prepare();
+    const histories: number[] = [];
+    let calls = 0;
+    const completer: Completer = {
+      model: "fake",
+      async complete(_system, _user, _max, history = []) {
+        histories.push(history.length);
+        calls++;
+        // First answer misspells a key (what happened on the PFMS action); second is right.
+        if (calls === 1) {
+          const { argumentsAgainst, ...rest } = goodAnalysis();
+          return JSON.stringify({ ...rest, argumentsAgaintsAgainst: argumentsAgainst });
+        }
+        return JSON.stringify(goodAnalysis());
+      },
+    };
+    const r = await analyseAction(key, actions, constitutions, { system: "s", completer, conflictOfInterestPolicy: "" });
+    expect(histories).toEqual([0, 2]);
+    expect(r.record.attempts.count).toBe(2);
+    expect(r.record.attempts.rejected[0].check).toBe("schema");
+    expect(r.record.attempts.rejected[0].problems.join(" ")).toContain("argumentsAgaintsAgainst");
+    expect(await readFile(r.files.markdown, "utf8")).toContain("after 2 attempts (earlier answers failed: schema)");
   });
 });

@@ -95,6 +95,7 @@ async function main(argv: string[]): Promise<number> {
           completer: anthropicCompleter(env("ANALYSIS_MODEL", "claude-sonnet-4-5")!),
           conflictOfInterestPolicy: policy,
           analysisUrlTemplate: env("ANALYSIS_URL_TEMPLATE"),
+          maxAttempts: Number(env("ANALYSIS_MAX_ATTEMPTS", "3")),
           log: (line) => console.log(line),
         });
         return 0;
