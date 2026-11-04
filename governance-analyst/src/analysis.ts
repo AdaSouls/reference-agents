@@ -56,6 +56,8 @@ export interface AnalysisRecord {
   inputs: { factsDigest: string; documentDigest: string | null };
   analysis: Analysis;
   checks: { figures: "ok"; citations: "ok" };
+  /** How many model answers it took, and why earlier ones were rejected. Nothing is hidden. */
+  attempts: { count: number; rejected: { check: string; problems: string[] }[] };
 }
 
 /** Which Constitution sections go in full, by action type. Everything else is cited from the index. */
@@ -248,7 +250,7 @@ export function renderMarkdown(record: AnalysisRecord, facts: Facts, constitutio
       : `**${facts.anchor.status}**${facts.anchor.detail ? ` — ${facts.anchor.detail}` : ""}; the document may not be what the proposer committed to`;
   return `# ${facts.type} · ${facts.actionId}
 
-> Prepared by the AdaSouls governance analyst (model ${record.model}, prompt ${record.promptVersion}) on ${record.analysedAt}.
+> Prepared by the AdaSouls governance analyst (model ${record.model}, prompt ${record.promptVersion}) on ${record.analysedAt}${record.attempts && record.attempts.count > 1 ? `, after ${record.attempts.count} attempts (earlier answers failed: ${record.attempts.rejected.map((r) => r.check).join(", ")})` : ""}.
 > **This is an analysis, not a vote.** A named person reads it, decides, and signs. Figures come from on-chain data; the suggested vote and its confidence are the model's and are marked as declared.
 
 | | |

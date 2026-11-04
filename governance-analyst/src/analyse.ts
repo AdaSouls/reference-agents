@@ -1,10 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { anchorDigest } from "./anchor.js";
-import { buildPrompt, draftRationale, parseModelJson, renderMarkdown, validateAnalysis, type AnalysisRecord } from "./analysis.js";
+import { AnalysisRejected, buildPrompt, draftRationale, parseModelJson, renderMarkdown, validateAnalysis, type Analysis, type AnalysisRecord } from "./analysis.js";
 import type { SplitConstitution } from "./constitution.js";
 import { buildFacts, describeProposalDocument, type Facts } from "./facts.js";
-import type { Completer } from "./model.js";
+import type { Completer, Turn } from "./model.js";
 import type { ActionStore, ConstitutionStore } from "./store.js";
 
 /**
@@ -18,6 +18,11 @@ export interface AnalyseOptions {
   system: string;
   completer: Completer;
   conflictOfInterestPolicy: string;
+  /**
+   * Model answers allowed before giving up (default 3). A rejected answer
+   * is sent back with the exact problems; the checks are never relaxed.
+   */
+  maxAttempts?: number;
   /** URL the rationale will point at; `{key}` is replaced. */
   analysisUrlTemplate?: string;
   now?: () => Date;
@@ -55,8 +60,37 @@ export async function analyseAction(
   const prompt = buildPrompt(options.system, { facts, constitution: split, document, conflictOfInterestPolicy: options.conflictOfInterestPolicy });
   log(`analysing ${key} (${facts.type}) with ${options.completer.model}; anchor ${facts.anchor.status}; document ${document.format}`);
 
-  const answer = await options.completer.complete(prompt.system, prompt.user);
-  const analysis = validateAnalysis(parseModelJson(answer), facts, split, document);
+  const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
+  const history: Turn[] = [];
+  const rejected: { check: string; problems: string[] }[] = [];
+  let analysis: Analysis | undefined;
+  for (let attempt = 1; attempt <= maxAttempts && !analysis; attempt++) {
+    const answer = await options.completer.complete(prompt.system, prompt.user, undefined, history);
+    try {
+      analysis = validateAnalysis(parseModelJson(answer), facts, split, document);
+    } catch (err) {
+      const r =
+        err instanceof AnalysisRejected
+          ? err
+          : new AnalysisRejected("schema", [`answer is not valid JSON: ${(err as Error).message}`]);
+      rejected.push({ check: r.check, problems: r.problems });
+      log(`attempt ${attempt}/${maxAttempts} rejected (${r.check}): ${r.problems.length} problem(s)`);
+      if (attempt === maxAttempts) throw new AnalysisRejected(r.check, r.problems);
+      history.push(
+        { role: "assistant", content: answer },
+        {
+          role: "user",
+          content: [
+            `Your answer was rejected by the ${r.check} check. Problems:`,
+            ...r.problems.map((p) => `- ${p}`),
+            "",
+            "Answer again with the complete JSON object, the exact keys of the schema, and nothing else. Do not drop content to pass the check: fix the source of each figure (FACTS path or DOCUMENT.<field>) or the id of each citation.",
+          ].join("\n"),
+        }
+      );
+    }
+  }
+  if (!analysis) throw new AnalysisRejected("schema", ["no answer"]);
 
   const record: AnalysisRecord = {
     v: "alma-governance-analysis/draft-1",
@@ -72,6 +106,7 @@ export async function analyseAction(
     },
     analysis,
     checks: { figures: "ok", citations: "ok" },
+    attempts: { count: rejected.length + 1, rejected },
   };
 
   const dir = actions.dir(key);
