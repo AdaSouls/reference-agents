@@ -52,6 +52,24 @@ describe("anchor", () => {
     expect((await fetchAnchor("ipfs://bafy", h)).check.status).toBe("unavailable");
   });
 
+  it("falls through rate-limited gateways to the next one", async () => {
+    const h = "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426";
+    const tried: string[] = [];
+    const gateways = (async (input: string | URL) => {
+      const url = String(input);
+      tried.push(url);
+      if (url.startsWith("https://busy.example/")) return new Response("slow down", { status: 429 });
+      return new Response(await readFile(path.join(fixtures, "anchors", "info-good.jsonld")));
+    }) as unknown as typeof fetch;
+    const r = await fetchAnchor("ipfs://QmFixture/info-good.jsonld", h, { fetch: gateways, ipfsGateway: "https://busy.example/ipfs/, https://ok.example/ipfs/" });
+    expect(r.check.status).toBe("verified");
+    expect(r.fetchedFrom).toBe("https://ok.example/ipfs/QmFixture/info-good.jsonld");
+    expect(tried).toHaveLength(2);
+    const allBusy = await fetchAnchor("ipfs://QmFixture/x", h, { fetch: gateways, ipfsGateway: "https://busy.example/ipfs/,https://busy.example/ipfs2/" });
+    expect(allBusy.check.status).toBe("unavailable");
+    expect((allBusy.check as { reason: string }).reason).toContain("429");
+  });
+
   it("fetches ipfs:// anchors through the configured gateway, and the hash still decides", async () => {
     const h = "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426";
     const gateway = (async (input: string | URL) => {
