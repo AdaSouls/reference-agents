@@ -4,6 +4,16 @@ import { z } from "zod";
 import type { SplitConstitution } from "./constitution.js";
 import { resolveFactPath, type Facts, type ProposalDocument } from "./facts.js";
 
+/** Fields of the proposer's document a figure may be quoted from. */
+export const DOCUMENT_FIELDS = ["title", "abstract", "motivation", "rationale", "references"] as const;
+export type DocumentField = (typeof DOCUMENT_FIELDS)[number];
+
+export function documentFieldText(document: ProposalDocument, field: DocumentField): string | undefined {
+  if (document.format !== "cip108") return field === "abstract" ? document.text : undefined;
+  const v = document[field];
+  return typeof v === "string" ? v : v == null ? undefined : JSON.stringify(v);
+}
+
 /**
  * G1.3: the analysis of one governance action. The model writes it from
  * verified inputs; the code checks it before anything is stored:
@@ -148,10 +158,37 @@ export function parseModelJson(text: string): unknown {
 
 const normaliseNumber = (s: string) => s.replace(/[,\s_]/g, "").replace(/\.0+$/, "");
 
-/** Gate 3: every figure resolves in FACTS and the value matches what is there. */
-export function checkFigures(analysis: Analysis, facts: Facts): string[] {
+/** `FACTS.*` = verified on chain by code; `DOCUMENT.<field>` = stated by the proposer, unverified. */
+export function figureKind(source: string): "verified" | "claimed" | "unknown" {
+  if (/^FACTS[.[]/.test(source)) return "verified";
+  if (new RegExp(`^DOCUMENT\\.(${DOCUMENT_FIELDS.join("|")})$`).test(source.trim())) return "claimed";
+  return "unknown";
+}
+
+/**
+ * Gate 3: every figure has a source and matches it. A FACTS figure must
+ * equal the value at that path. A DOCUMENT figure must appear, as a
+ * number, in that field of the proposer's document: the analysis may quote
+ * what the proposer wrote, and the reader sees it is the proposer's claim.
+ */
+export function checkFigures(analysis: Analysis, facts: Facts, document?: ProposalDocument): string[] {
   const problems: string[] = [];
   for (const f of analysis.figures) {
+    const kind = figureKind(f.source);
+    if (kind === "claimed") {
+      const field = f.source.trim().slice("DOCUMENT.".length) as DocumentField;
+      const text = document ? documentFieldText(document, field) : undefined;
+      if (text === undefined) {
+        problems.push(`figure "${f.label}": ${f.source} is not in the proposal document`);
+        continue;
+      }
+      const numbers = new Set(Array.from(text.matchAll(/\d[\d,._\s]*\d|\d/g), (m) => normaliseNumber(m[0])));
+      const wanted = Array.from(f.value.matchAll(/\d[\d,._\s]*\d|\d/g), (m) => normaliseNumber(m[0]));
+      if (wanted.length === 0 || !wanted.every((w) => numbers.has(w) || [...numbers].some((n) => n.replace(/\..*$/, "") === w.replace(/\..*$/, "")))) {
+        problems.push(`figure "${f.label}": value "${f.value}" does not appear in ${f.source}`);
+      }
+      continue;
+    }
     const v = resolveFactPath(facts, f.source);
     if (v === undefined) {
       problems.push(`figure "${f.label}": source ${f.source} does not resolve`);
@@ -189,10 +226,10 @@ export function checkCitations(analysis: Analysis, constitution: SplitConstituti
   return problems;
 }
 
-export function validateAnalysis(raw: unknown, facts: Facts, constitution: SplitConstitution): Analysis {
+export function validateAnalysis(raw: unknown, facts: Facts, constitution: SplitConstitution, document?: ProposalDocument): Analysis {
   const parsed = analysisSchema.safeParse(raw);
   if (!parsed.success) throw new AnalysisRejected("schema", parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`));
-  const figures = checkFigures(parsed.data, facts);
+  const figures = checkFigures(parsed.data, facts, document);
   if (figures.length) throw new AnalysisRejected("figures", figures);
   const citations = checkCitations(parsed.data, constitution);
   if (citations.length) throw new AnalysisRejected("citations", citations);
@@ -268,9 +305,9 @@ ${a.conflictOfInterest.applies ? `**Applies.** ${a.conflictOfInterest.reason}` :
 
 ## Figures used
 
-| Figure | Value | Source |
-| --- | --- | --- |
-${a.figures.map((f) => `| ${f.label} | ${f.value} | \`${f.source}\` |`).join("\n") || "| (none) | | |"}
+| Figure | Value | Source | Status |
+| --- | --- | --- | --- |
+${a.figures.map((f) => `| ${f.label} | ${f.value} | \`${f.source}\` | ${figureKind(f.source) === "verified" ? "verified on chain" : "stated by the proposer, not verified"} |`).join("\n") || "| (none) | | | |"}
 `;
 }
 
