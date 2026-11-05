@@ -90,9 +90,14 @@ export interface Guardrail {
 }
 
 export interface SplitConstitution {
+  /** Which splitter produced this; a stored split from another version is redone from the text. */
+  splitter?: number;
   sections: Section[];
   guardrails: Guardrail[];
 }
+
+/** Bump whenever splitConstitution's output changes for the same text. 2: guardrail families up to 16 letters. */
+export const SPLITTER_VERSION = 2;
 
 const ROMAN: Record<string, number> = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12 };
 
@@ -244,7 +249,7 @@ export function splitConstitution(text: string): SplitConstitution {
       text: lines.slice(i, j).join("\n"),
     });
   }
-  return { sections, guardrails };
+  return { splitter: SPLITTER_VERSION, sections, guardrails };
 }
 
 /** A section or guardrail by id, for citation checks (test plan gate 5). */

@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { anchorDigest } from "../src/anchor.js";
 import { analyseAction } from "../src/analyse.js";
 import { AnalysisRejected, buildPrompt, checkCitations, checkFigures, loadSystemPrompt, parseModelJson, validateAnalysis, type Analysis } from "../src/analysis.js";
 import { splitConstitution } from "../src/constitution.js";
@@ -198,8 +199,9 @@ describe("gov analyse end to end (model simulated)", () => {
     await ingestOne(p, actions, { anchor: { fetch: fetchImpl } });
     const constitutions = new ConstitutionStore(dataDir);
     const text = await readFile(path.join(fixtures, "constitution-excerpt.md"));
-    await constitutions.save("c".repeat(64), text, splitConstitution(text.toString("utf8")), {
-      hash: "c".repeat(64), anchorUrl: "ipfs://x", actionKey: "k", proposalId: "gov_action1x", enactedEpoch: 609, verifiedAt: "", bytes: text.length, sections: 1, guardrails: 1,
+    const ch = anchorDigest(text);
+    await constitutions.save(ch, text, splitConstitution(text.toString("utf8")), {
+      hash: ch, anchorUrl: "ipfs://x", actionKey: "k", proposalId: "gov_action1x", enactedEpoch: 609, verifiedAt: "", bytes: text.length, sections: 1, guardrails: 1,
     });
     return { actions, constitutions, key: `${"2".repeat(64)}-0` };
   }
@@ -226,7 +228,7 @@ describe("gov analyse end to end (model simulated)", () => {
       now: () => new Date("2026-11-04T01:00:00Z"),
     });
     expect(r.record.model).toBe("fake-model");
-    expect(r.record.constitutionHash).toBe("c".repeat(64));
+    expect(r.record.constitutionHash).toMatch(/^[0-9a-f]{64}$/);
     expect(r.record.checks).toEqual({ figures: "ok", citations: "ok" });
     expect(completer.prompts[0]).toContain("Tampered anchor");
     const md = await readFile(r.files.markdown, "utf8");

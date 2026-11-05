@@ -42,8 +42,9 @@ describe("gov review", () => {
     await ingestOne(p, actions, { anchor: { fetch: f } });
     const constitutions = new ConstitutionStore(dataDir);
     const text = await readFile(path.join(fixtures, "constitution-excerpt.md"));
-    await constitutions.save("c".repeat(64), text, splitConstitution(text.toString("utf8")), {
-      hash: "c".repeat(64), anchorUrl: "ipfs://x", actionKey: "k", proposalId: "g", enactedEpoch: 609, verifiedAt: "", bytes: 1, sections: 1, guardrails: 1,
+    const ch = anchorDigest(text);
+    await constitutions.save(ch, text, splitConstitution(text.toString("utf8")), {
+      hash: ch, anchorUrl: "ipfs://x", actionKey: "k", proposalId: "g", enactedEpoch: 609, verifiedAt: "", bytes: 1, sections: 1, guardrails: 1,
     });
     key = `${"1".repeat(64)}-0`;
     await analyseAction(key, actions, constitutions, { system: "s", completer, conflictOfInterestPolicy: "" });

@@ -1,5 +1,5 @@
 import { anchorDigest, fetchAnchor, type FetchAnchorOptions } from "./anchor.js";
-import { currentConstitutionAnchor, splitConstitution, type ConstitutionAnchor } from "./constitution.js";
+import { SPLITTER_VERSION, currentConstitutionAnchor, splitConstitution, type ConstitutionAnchor } from "./constitution.js";
 import type { KoiosClient } from "./koios.js";
 import type { ConstitutionSourceRecord, ConstitutionStore } from "./store.js";
 
@@ -38,8 +38,16 @@ export async function syncConstitution(
   if (existing) {
     const text = await store.readText(anchor.hash);
     if (text && anchorDigest(new TextEncoder().encode(text)) === anchor.hash) {
-      log(`already stored and still verifies: ${store.dir(anchor.hash)}`);
-      return { status: "verified", anchor, source: existing, alreadyStored: true };
+      if (existing.splitter === SPLITTER_VERSION) {
+        log(`already stored and still verifies: ${store.dir(anchor.hash)}`);
+        return { status: "verified", anchor, source: existing, alreadyStored: true };
+      }
+      // Same verified bytes, newer splitter: redo the split, keep the bytes.
+      const split = splitConstitution(text);
+      const source: ConstitutionSourceRecord = { ...existing, sections: split.sections.length, guardrails: split.guardrails.length, splitter: SPLITTER_VERSION };
+      await store.save(anchor.hash, new TextEncoder().encode(text), split, source);
+      log(`re-split with splitter v${SPLITTER_VERSION} (was v${existing.splitter ?? 1}): ${split.sections.length} sections, ${split.guardrails.length} guardrails`);
+      return { status: "verified", anchor, source, alreadyStored: true };
     }
   }
 
@@ -62,6 +70,7 @@ export async function syncConstitution(
         bytes: fetched.bytes.length,
         sections: split.sections.length,
         guardrails: split.guardrails.length,
+        splitter: SPLITTER_VERSION,
       };
       await store.save(anchor.hash, fetched.bytes, split, source);
       log(`verified ${fetched.bytes.length} bytes from ${fetched.fetchedFrom ?? url}: ${split.sections.length} sections, ${split.guardrails.length} guardrails`);

@@ -2,6 +2,7 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { anchorDigest } from "../src/anchor.js";
 import { analyseAction } from "../src/analyse.js";
 import { splitConstitution } from "../src/constitution.js";
 import { ingestOne } from "../src/ingest.js";
@@ -29,8 +30,9 @@ describe("gov publish / gov anchor", () => {
     await ingestOne(list[1], actions, { anchor: { fetch: f } });
     const constitutions = new ConstitutionStore(dataDir);
     const text = await readFile(path.join(fixtures, "constitution-excerpt.md"));
-    await constitutions.save("c".repeat(64), text, splitConstitution(text.toString("utf8")), {
-      hash: "c".repeat(64), anchorUrl: "ipfs://x", actionKey: "k", proposalId: "g", enactedEpoch: 609, verifiedAt: "", bytes: 1, sections: 1, guardrails: 1,
+    const ch = anchorDigest(text);
+    await constitutions.save(ch, text, splitConstitution(text.toString("utf8")), {
+      hash: ch, anchorUrl: "ipfs://x", actionKey: "k", proposalId: "g", enactedEpoch: 609, verifiedAt: "", bytes: 1, sections: 1, guardrails: 1,
     });
     const completer: Completer = {
       model: "fake",
