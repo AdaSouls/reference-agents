@@ -147,5 +147,14 @@ describe("gov constitution", () => {
     const again = await syncConstitution(new KoiosClient({ fetch: f }), store, { anchor: { fetch: f } });
     expect(again.status).toBe("verified");
     if (again.status === "verified") expect(again.alreadyStored).toBe(true);
+
+    // A split stored by an older splitter is redone from the same bytes (what bit the PFMS run).
+    const old = await store.readSource(h);
+    await store.save(h, excerpt, { sections: [], guardrails: [] }, { ...old!, splitter: 1, guardrails: 0 });
+    const lines: string[] = [];
+    const resplit = await syncConstitution(new KoiosClient({ fetch: f }), store, { anchor: { fetch: f }, log: (l) => lines.push(l) });
+    expect(resplit.status).toBe("verified");
+    expect(lines.some((l) => l.startsWith("re-split with splitter v2 (was v1)"))).toBe(true);
+    expect((await store.readSections<{ guardrails: unknown[] }>(h))?.guardrails).toHaveLength(2);
   });
 });

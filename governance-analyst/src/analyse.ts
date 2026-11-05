@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { anchorDigest } from "./anchor.js";
 import { AnalysisRejected, PROMPT_VERSION, buildPrompt, draftRationale, parseModelJson, renderMarkdown, validateAnalysis, type Analysis, type AnalysisRecord } from "./analysis.js";
-import type { SplitConstitution } from "./constitution.js";
+import { splitConstitution } from "./constitution.js";
 import { buildFacts, describeProposalDocument, type Facts } from "./facts.js";
 import type { Completer, Turn } from "./model.js";
 import type { ActionStore, ConstitutionStore } from "./store.js";
@@ -46,8 +46,10 @@ export async function analyseAction(
   const check = await actions.readCheck(key);
   if (!onchain || !check) throw new Error(`action ${key} is not ingested; run \`gov ingest\` first`);
   const hash = await constitutions.currentHash();
-  const split = hash ? await constitutions.readSections<SplitConstitution>(hash) : undefined;
-  if (!hash || !split) throw new Error("no Constitution stored; run `gov constitution` first");
+  // Always split from the stored, verified text: the citable index can never lag behind the splitter.
+  const text = hash ? await constitutions.readText(hash) : undefined;
+  const split = text && anchorDigest(new TextEncoder().encode(text)) === hash ? splitConstitution(text) : undefined;
+  if (!hash || !split) throw new Error("no verified Constitution stored; run `gov constitution` first");
 
   const facts = buildFacts(onchain, check);
   let bytes: Uint8Array | undefined;

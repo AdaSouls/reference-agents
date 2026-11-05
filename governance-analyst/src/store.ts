@@ -86,6 +86,7 @@ export interface ConstitutionSourceRecord {
   bytes: number;
   sections: number;
   guardrails: number;
+  splitter?: number;
 }
 
 /**
