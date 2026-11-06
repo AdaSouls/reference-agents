@@ -3,7 +3,9 @@ import path from "node:path";
 import { anchorDigest } from "./anchor.js";
 import { AnalysisRejected, PROMPT_VERSION, buildPrompt, draftRationale, parseModelJson, renderMarkdown, validateAnalysis, type Analysis, type AnalysisRecord } from "./analysis.js";
 import { splitConstitution } from "./constitution.js";
+import { contextFacts, gatherContext, type ActionContext, type TreasuryPolicy } from "./context.js";
 import { buildFacts, describeProposalDocument, type Facts } from "./facts.js";
+import type { KoiosClient } from "./koios.js";
 import type { Completer, Turn } from "./model.js";
 import type { ActionStore, ConstitutionStore } from "./store.js";
 
@@ -27,6 +29,12 @@ export interface AnalyseOptions {
   provenance: { agent: string | null; almaVersion: string };
   /** URL the rationale will point at; `{key}` is replaced. */
   analysisUrlTemplate?: string;
+  /**
+   * Voting state, treasury and proposer history. With `koios`, a fresh
+   * snapshot is taken and stored as context.json; without it the stored
+   * snapshot is used (`--offline`), or none if there is none.
+   */
+  context?: { koios?: KoiosClient; treasuryPolicy: TreasuryPolicy };
   now?: () => Date;
   log?: (line: string) => void;
 }
@@ -53,7 +61,18 @@ export async function analyseAction(
   const split = text && anchorDigest(new TextEncoder().encode(text)) === hash ? splitConstitution(text) : undefined;
   if (!hash || !split) throw new Error("no verified Constitution stored; run `gov constitution` first");
 
-  const facts = buildFacts(onchain, check);
+  let context: ActionContext | undefined;
+  if (options.context?.koios) {
+    context = await gatherContext(options.context.koios, onchain, options.context.treasuryPolicy, { now: options.now, log });
+    await actions.saveContext(key, context);
+  } else {
+    context = await actions.readContext<ActionContext>(key);
+    if (context) log(`using stored context from ${context.fetchedAt} (epoch ${context.epoch})`);
+    else log("no context: voting state, treasury and proposer history unknown");
+  }
+  const allProposals = (await actions.readProposalList()) ?? [];
+  if (context && allProposals.length === 0) log("no stored proposal list: run `gov ingest` for treasury sums and proposer history");
+  const facts = buildFacts(onchain, check, context ? contextFacts(onchain, context, allProposals) : undefined);
   let bytes: Uint8Array | undefined;
   try {
     bytes = new Uint8Array(await readFile(path.join(actions.dir(key), "anchor.bin")));
@@ -104,6 +123,8 @@ export async function analyseAction(
     almaVersion: options.provenance.almaVersion,
     sources: [
       { name: "koios", ref: "/proposal_list", digest: await sha256Hex(new TextEncoder().encode(JSON.stringify(onchain))) },
+      ...(context ? [{ name: "koios" as const, ref: `context.json@${context.fetchedAt}`, digest: await sha256Hex(new TextEncoder().encode(JSON.stringify(context))) }] : []),
+      ...(context && allProposals.length ? [{ name: "koios" as const, ref: "/proposal_list (stored)", digest: await sha256Hex(new TextEncoder().encode(JSON.stringify(allProposals))) }] : []),
       { name: "anchor", ref: facts.anchor.url ?? "(none)", digest: bytes ? anchorDigest(bytes) : null },
       { name: "constitution", ref: hash, digest: hash },
     ],

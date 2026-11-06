@@ -1,0 +1,20 @@
+# The treasury Net Change Limit (NCL) AdaSouls recognises, per period.
+#
+# The Constitution's guardrail TREASURY-01a has the DReps agree an NCL
+# through an Info action. Info actions are never ratified by the ledger,
+# so "which NCL is in force" is a reading of the votes, not a chain state.
+# This file is that reading, written down and cited; the code verifies each
+# entry against Koios' voting summary (DRep Yes must be above `agreedWhen`)
+# and reports `agreed: false` instead of an amount when it is not.
+#
+# A new NCL is a PR here. The analysis prints the entry it used.
+netChangeLimits:
+  - lovelace: "500000000000000"
+    ada: "500000000"
+    epochs: { from: 613, to: 713 }
+    actionKey: a75645e0871f3dbb6207df867d9bd6a1a3a5befa40d68df6da651db4d6607fbf-0
+    proposalId: gov_action15atytcy8ru7mkcs8m7r8mx7k5x36t0h6grtgmak6v5wmf4nq07lsqhakceq
+    anchorHash: d420037401626f4db20a255ca52d9d39764f68edfdc02686007cf9c731564f88
+    agreedWhen: "TREASURY-01a: Yes above 50% of active DRep voting stake"
+    drepYesAbovePct: 50
+    supersedes: dc4c679c8cf1cec49817d4d2c1c96cd802ec8a047a11dc0b0bb125b5af0a76cd-0   # 350M for the same period, agreed earlier

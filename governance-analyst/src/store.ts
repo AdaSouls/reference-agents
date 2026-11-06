@@ -63,6 +63,33 @@ export class ActionStore {
     }
   }
 
+  /** The whole /proposal_list as last ingested: proposer history and treasury sums are computed from it. */
+  async saveProposalList(list: Proposal[]): Promise<void> {
+    await mkdir(path.join(this.dataDir, "koios"), { recursive: true });
+    await writeFile(path.join(this.dataDir, "koios", "proposal_list.json"), JSON.stringify(list, null, 2) + "\n");
+  }
+
+  async readProposalList(): Promise<Proposal[] | undefined> {
+    try {
+      return JSON.parse(await readFile(path.join(this.dataDir, "koios", "proposal_list.json"), "utf8")) as Proposal[];
+    } catch {
+      return undefined;
+    }
+  }
+
+  async saveContext(key: string, context: unknown): Promise<void> {
+    await mkdir(this.dir(key), { recursive: true });
+    await writeFile(path.join(this.dir(key), "context.json"), JSON.stringify(context, null, 2) + "\n");
+  }
+
+  async readContext<T = unknown>(key: string): Promise<T | undefined> {
+    try {
+      return JSON.parse(await readFile(path.join(this.dir(key), "context.json"), "utf8")) as T;
+    } catch {
+      return undefined;
+    }
+  }
+
   async keys(): Promise<string[]> {
     try {
       return (await readdir(path.join(this.dataDir, "actions"))).sort();

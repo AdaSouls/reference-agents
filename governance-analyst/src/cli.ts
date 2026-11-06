@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AnalysisRejected, loadSystemPrompt } from "./analysis.js";
 import { analyseAction } from "./analyse.js";
+import { loadTreasuryPolicy } from "./context.js";
 import { syncConstitution } from "./constitution-sync.js";
 import { anthropicCompleter } from "./model.js";
 import { anchorUrl, hashFile, publish } from "./publish.js";
@@ -19,7 +20,7 @@ import { ActionStore, ConstitutionStore } from "./store.js";
  * gov ingest [--all]      list governance actions, verify anchors, store them
  * gov list                what is stored, with each anchor's verdict
  * gov constitution        the Constitution in force, verified and split into citable sections
- * gov analyse <tx>-<ix>   the analysis: facts + Constitution + the proposer's document -> model -> checks -> files
+ * gov analyse <tx>-<ix>   the analysis: facts (+ voting state, treasury, proposer history from Koios) + Constitution + the proposer's document -> model -> checks -> files
  * gov review <tx>-<ix> --vote Yes|No|Abstain --reason "..." [--comment-file f]
  *                         the human's decision: final rationale + its anchor hash, decision.json, signatures
  * gov whoami              the agent's ALMA: identity, principal, delegation, rules, almaVersion, key id
@@ -94,7 +95,7 @@ async function main(argv: string[]): Promise<number> {
     case "analyze": {
       const key = rest.find((a) => !a.startsWith("--"));
       if (!key) {
-        console.error("usage: gov analyse <tx>-<ix>");
+        console.error("usage: gov analyse <tx>-<ix> [--offline]   (--offline: reuse the stored voting/treasury snapshot)");
         return 1;
       }
       const alma = await almaFor("analyse", { actionType: (await store.readOnchain(key))?.proposal_type });
@@ -103,6 +104,10 @@ async function main(argv: string[]): Promise<number> {
       const policy = policyPath ? await readFile(policyPath, "utf8") : env("COI_TERMS") ? `Parties and topics that trigger a conflict of interest: ${env("COI_TERMS")}` : "";
       try {
         await analyseAction(key, store, new ConstitutionStore(env("DATA_DIR", "./data")!), {
+          context: {
+            koios: rest.includes("--offline") ? undefined : new KoiosClient({ baseUrl: env("KOIOS_BASE_URL"), apiKey: env("KOIOS_API_KEY") }),
+            treasuryPolicy: await loadTreasuryPolicy(path.join(projectDir, "context", "treasury.yaml")),
+          },
           system: await loadSystemPrompt(promptsDir),
           completer: anthropicCompleter(env("ANALYSIS_MODEL", "claude-sonnet-4-5")!),
           conflictOfInterestPolicy: policy,

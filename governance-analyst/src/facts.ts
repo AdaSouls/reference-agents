@@ -1,3 +1,4 @@
+import type { ContextFacts } from "./context.js";
 import type { Proposal } from "./koios.js";
 import type { ActionCheckRecord } from "./store.js";
 
@@ -31,6 +32,12 @@ export interface Facts {
     status: ActionCheckRecord["anchor"]["status"];
     detail?: string;
   };
+  /** Where the vote stands, from Koios at analysis time (context.json). Absent when no context was gathered. */
+  voting?: ContextFacts["voting"];
+  /** TreasuryWithdrawals only: the Net Change Limit, what is left of it, and this action against it. */
+  treasury?: ContextFacts["treasury"];
+  /** Other actions from the same deposit return address. */
+  proposerHistory?: ContextFacts["proposerHistory"];
 }
 
 /** Lovelace → ADA as an exact decimal string, no floats ("940000000000" → "940000", "1500000" → "1.5"). */
@@ -42,7 +49,7 @@ export function lovelaceToAda(lovelace: string | number): string {
   return frac ? `${whole}.${frac}` : whole;
 }
 
-export function buildFacts(proposal: Proposal, check: ActionCheckRecord): Facts {
+export function buildFacts(proposal: Proposal, check: ActionCheckRecord, context?: ContextFacts): Facts {
   const withdrawals = Array.isArray(proposal.withdrawal)
     ? (proposal.withdrawal as Array<{ stake_address?: string; amount?: string | number }>)
         .filter((w) => w && w.amount != null)
@@ -70,6 +77,7 @@ export function buildFacts(proposal: Proposal, check: ActionCheckRecord): Facts 
       status: a.status,
       detail: a.status === "mismatch" ? `bytes hashed to ${a.digest}, chain says ${a.expected}` : a.status === "unavailable" ? a.reason : undefined,
     },
+    ...(context ? { voting: context.voting, treasury: context.treasury, proposerHistory: context.proposerHistory } : {}),
   };
 }
 

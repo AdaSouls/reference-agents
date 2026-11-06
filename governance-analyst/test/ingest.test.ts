@@ -90,7 +90,7 @@ describe("anchor", () => {
 describe("koios", () => {
   it("parses the recorded /proposal_list and tells open from closed", async () => {
     const list = proposalListSchema.parse(JSON.parse(await readFile(path.join(fixtures, "proposal_list.json"), "utf8")));
-    expect(list).toHaveLength(4);
+    expect(list).toHaveLength(7);
     expect(list.filter(isOpen).map((p) => p.proposal_type)).toEqual(["InfoAction", "TreasuryWithdrawals", "ParameterChange"]);
     expect(actionKey(list[2])).toBe(`${"3".repeat(64)}-1`);
   });
@@ -125,7 +125,7 @@ describe("ingest", () => {
       now: () => new Date("2026-11-03T00:00:00Z"),
       log: (l) => lines.push(l),
     });
-    expect(summary).toMatchObject({ seen: 4, ingested: 3, verified: 1, mismatch: 1, unavailable: 1, none: 0 });
+    expect(summary).toMatchObject({ seen: 7, ingested: 3, verified: 1, mismatch: 1, unavailable: 1, none: 0 });
     expect(lines).toHaveLength(3);
 
     const keys = await store.keys();
@@ -150,7 +150,7 @@ describe("ingest", () => {
   it("includes closed actions only with --all", async () => {
     const store = new ActionStore(dataDir);
     const summary = await ingest(new KoiosClient({ fetch: fetchImpl }), store, { all: true, anchor: { fetch: fetchImpl } });
-    expect(summary.ingested).toBe(4);
+    expect(summary.ingested).toBe(7);
   });
 });
 

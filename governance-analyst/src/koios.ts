@@ -52,6 +52,55 @@ export type Proposal = z.infer<typeof proposalSchema>;
 
 export const proposalListSchema = z.array(proposalSchema);
 
+/** `GET /proposal_voting_summary?_proposal_id=`: vote power and counts per voter class, as of Koios' tip. */
+export const votingSummarySchema = z
+  .object({
+    proposal_type: z.string().optional(),
+    epoch_no: z.number().int().nullable().optional(),
+    drep_yes_votes_cast: z.number().int(),
+    drep_no_votes_cast: z.number().int(),
+    drep_abstain_votes_cast: z.number().int(),
+    drep_yes_vote_power: z.union([z.string(), z.number()]).nullable(),
+    drep_no_vote_power: z.union([z.string(), z.number()]).nullable(),
+    drep_active_yes_vote_power: z.union([z.string(), z.number()]).nullable().optional(),
+    drep_active_no_vote_power: z.union([z.string(), z.number()]).nullable().optional(),
+    drep_active_abstain_vote_power: z.union([z.string(), z.number()]).nullable().optional(),
+    drep_always_no_confidence_vote_power: z.union([z.string(), z.number()]).nullable().optional(),
+    drep_always_abstain_vote_power: z.union([z.string(), z.number()]).nullable().optional(),
+    drep_yes_pct: z.number().nullable(),
+    drep_no_pct: z.number().nullable(),
+    pool_yes_votes_cast: z.number().int(),
+    pool_no_votes_cast: z.number().int(),
+    pool_abstain_votes_cast: z.number().int(),
+    pool_yes_pct: z.number().nullable(),
+    pool_no_pct: z.number().nullable(),
+    committee_yes_votes_cast: z.number().int(),
+    committee_no_votes_cast: z.number().int(),
+    committee_abstain_votes_cast: z.number().int(),
+    committee_yes_pct: z.number().nullable(),
+    committee_no_pct: z.number().nullable(),
+  })
+  .passthrough();
+export type VotingSummary = z.infer<typeof votingSummarySchema>;
+
+/** `GET /cli_protocol_params`: the Conway voting thresholds, in cardano-cli's JSON shape. */
+export const protocolParamsSchema = z
+  .object({
+    dRepVotingThresholds: z.record(z.number()).optional(),
+    poolVotingThresholds: z.record(z.number()).optional(),
+    govActionLifetime: z.number().int().optional(),
+  })
+  .passthrough();
+export type ProtocolParams = z.infer<typeof protocolParamsSchema>;
+
+/** `GET /totals?_epoch_no=`: supply figures per epoch; `treasury` is in lovelace. */
+export const totalsSchema = z
+  .object({ epoch_no: z.number().int(), treasury: z.union([z.string(), z.number()]).nullable() })
+  .passthrough();
+export type Totals = z.infer<typeof totalsSchema>;
+
+export const tipSchema = z.object({ epoch_no: z.number().int(), block_time: z.number().optional() }).passthrough();
+
 /** Open = not yet ratified, enacted, dropped or expired. */
 export function isOpen(p: Proposal): boolean {
   return p.ratified_epoch == null && p.enacted_epoch == null && p.dropped_epoch == null && p.expired_epoch == null;
@@ -90,10 +139,35 @@ export class KoiosClient {
     return res.json();
   }
 
+  private async parsed<T>(path: string, schema: z.ZodType<T>): Promise<T> {
+    const parsed = schema.safeParse(await this.get(path));
+    if (!parsed.success) throw new Error(`koios ${path.split("?")[0]}: unexpected shape: ${parsed.error.issues[0]?.path.join(".")} ${parsed.error.issues[0]?.message}`);
+    return parsed.data;
+  }
+
   /** Every governance action Koios knows about; filter with `isOpen` for the live ones. */
   async proposalList(): Promise<Proposal[]> {
-    const parsed = proposalListSchema.safeParse(await this.get("/proposal_list"));
-    if (!parsed.success) throw new Error(`koios /proposal_list: unexpected shape: ${parsed.error.issues[0]?.message}`);
-    return parsed.data;
+    return this.parsed("/proposal_list", proposalListSchema);
+  }
+
+  /** Where the vote stands for one action; undefined when Koios has no row for it. */
+  async votingSummary(proposalId: string): Promise<VotingSummary | undefined> {
+    const rows = await this.parsed(`/proposal_voting_summary?_proposal_id=${encodeURIComponent(proposalId)}`, z.array(votingSummarySchema));
+    return rows[0];
+  }
+
+  async protocolParams(): Promise<ProtocolParams> {
+    return this.parsed("/cli_protocol_params", protocolParamsSchema);
+  }
+
+  async totals(epoch: number): Promise<Totals | undefined> {
+    const rows = await this.parsed(`/totals?_epoch_no=${epoch}`, z.array(totalsSchema));
+    return rows[0];
+  }
+
+  async tip(): Promise<{ epoch_no: number }> {
+    const rows = await this.parsed("/tip", z.array(tipSchema));
+    if (!rows[0]) throw new Error("koios /tip: empty");
+    return rows[0];
   }
 }
