@@ -113,5 +113,113 @@
     "meta_is_valid": true,
     "withdrawal": null,
     "param_proposal": null
+  },
+  {
+    "block_time": 1761000100,
+    "proposal_id": "gov_action1fixture05",
+    "proposal_tx_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+    "proposal_index": 0,
+    "proposal_type": "TreasuryWithdrawals",
+    "proposal_description": {
+      "tag": "TreasuryWithdrawals"
+    },
+    "previous_gov_action_proposal_id": null,
+    "deposit": "100000000000",
+    "return_address": "stake1u9fixture",
+    "proposed_epoch": 580,
+    "ratified_epoch": 585,
+    "enacted_epoch": 586,
+    "dropped_epoch": null,
+    "expired_epoch": null,
+    "expiration": 606,
+    "meta_url": "https://anchors.example/info-tampered.jsonld",
+    "meta_hash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "meta_json": {
+      "body": {
+        "title": "Fixture enacted before the period"
+      }
+    },
+    "meta_comment": null,
+    "meta_language": null,
+    "meta_is_valid": false,
+    "withdrawal": [
+      {
+        "stake_address": "stake1u9fixture",
+        "amount": "7000000000000"
+      }
+    ],
+    "param_proposal": null
+  },
+  {
+    "block_time": 1761000100,
+    "proposal_id": "gov_action1fixture06",
+    "proposal_tx_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+    "proposal_index": 0,
+    "proposal_type": "TreasuryWithdrawals",
+    "proposal_description": {
+      "tag": "TreasuryWithdrawals"
+    },
+    "previous_gov_action_proposal_id": null,
+    "deposit": "100000000000",
+    "return_address": "stake1u9fixture",
+    "proposed_epoch": 601,
+    "ratified_epoch": 606,
+    "enacted_epoch": 607,
+    "dropped_epoch": null,
+    "expired_epoch": null,
+    "expiration": 606,
+    "meta_url": "https://anchors.example/info-tampered.jsonld",
+    "meta_hash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "meta_json": {
+      "body": {
+        "title": "Fixture enacted in the period"
+      }
+    },
+    "meta_comment": null,
+    "meta_language": null,
+    "meta_is_valid": false,
+    "withdrawal": [
+      {
+        "stake_address": "stake1u9fixture",
+        "amount": "60000000000000"
+      }
+    ],
+    "param_proposal": null
+  },
+  {
+    "block_time": 1761000100,
+    "proposal_id": "gov_action1fixture07",
+    "proposal_tx_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+    "proposal_index": 0,
+    "proposal_type": "TreasuryWithdrawals",
+    "proposal_description": {
+      "tag": "TreasuryWithdrawals"
+    },
+    "previous_gov_action_proposal_id": null,
+    "deposit": "100000000000",
+    "return_address": "stake1u9fixture",
+    "proposed_epoch": 595,
+    "ratified_epoch": null,
+    "enacted_epoch": null,
+    "dropped_epoch": 603,
+    "expired_epoch": 602,
+    "expiration": 606,
+    "meta_url": "https://anchors.example/info-tampered.jsonld",
+    "meta_hash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "meta_json": {
+      "body": {
+        "title": "Fixture expired"
+      }
+    },
+    "meta_comment": null,
+    "meta_language": null,
+    "meta_is_valid": false,
+    "withdrawal": [
+      {
+        "stake_address": "stake1u9fixture",
+        "amount": "3000000000000"
+      }
+    ],
+    "param_proposal": null
   }
 ]

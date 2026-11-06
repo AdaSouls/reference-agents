@@ -8,6 +8,9 @@ sources:
       - /proposal_list
       - /proposal_voting_summary?_proposal_id=
       - /proposal_votes?_proposal_id=
+      - /cli_protocol_params   (voting thresholds)
+      - /totals?_epoch_no=      (treasury balance)
+      - /tip
       - /drep_info
     trust: "on-chain fields, as reported by one indexer; cross-check planned"
     auth: optional bearer (KOIOS_API_KEY) for higher rate limits
@@ -18,3 +21,6 @@ sources:
   - name: constitution
     kind: on-chain anchored document
     trust: "untrusted bytes; accepted only if the hash matches the on-chain constitution anchor"
+  - name: treasury-policy
+    kind: committed file (context/treasury.yaml)
+    trust: "AdaSouls' own reading of which Net Change Limit the DReps agreed; each entry cites the Info action and is checked against Koios' vote on it"

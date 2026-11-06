@@ -52,6 +52,7 @@ export async function ingestOne(
 export async function ingest(koios: KoiosClient, store: ActionStore, options: IngestOptions = {}): Promise<IngestSummary> {
   const log = options.log ?? (() => {});
   const proposals = await koios.proposalList();
+  await store.saveProposalList(proposals);
   const wanted = options.all ? proposals : proposals.filter(isOpen);
   const summary: IngestSummary = { seen: proposals.length, ingested: 0, verified: 0, mismatch: 0, unavailable: 0, none: 0, records: [] };
   for (const p of wanted) {

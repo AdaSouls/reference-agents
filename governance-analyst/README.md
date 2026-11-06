@@ -40,6 +40,7 @@ npx @adasouls/alma-cli connect --agent governance-analyst --org alma:main:org:ad
                              # once per deployment: identity, delegation of alma.yaml, issuer.key in .alma/
 npm start -- whoami          # ALMA id, principal, delegation, almaVersion, kid
 npm start -- analyse <tx>-<ix>   # needs ANTHROPIC_API_KEY; exit 3 = the model's answer failed a check, nothing written
+                                 # takes a Koios snapshot first (votes, thresholds, treasury); --offline reuses the stored one
 npm start -- review <tx>-<ix> --vote No --reason "why"   # writes rationale.jsonld, decision.json, *.sig.json
 npm start -- publish                      # into $GOVERNANCE_DIR/votes/; then git commit there
 npm start -- anchor <tx>-<ix> --commit <sha> --check   # --anchor-url and --anchor-data-hash for the vote
@@ -74,8 +75,12 @@ security.md               threat model
 context/sources.yaml      Koios, anchors, Constitution: trust per source
 events/schemas/           cardano.gov.action_observed (more as phases land)
 src/koios.ts              the slice of Koios we read, validated with zod
+src/context.ts            snapshot at analysis time: where the vote stands per class against its threshold,
+                          Net Change Limit (context/treasury.yaml, verified against the DRep vote on it),
+                          enacted withdrawals in the period and what remains, other actions from the same return address
+context/treasury.yaml     the NCL AdaSouls recognises per period, citing the Info action; a new NCL is a PR
 src/anchor.ts             fetch + blake2b-256 verify, size and time limits
-src/store.ts              data/actions/<tx>-<ix>/{onchain.json, anchor.bin, check.json}
+src/store.ts              data/actions/<tx>-<ix>/{onchain.json, anchor.bin, check.json, context.json}; data/koios/proposal_list.json
                           data/constitution/<hash>/{constitution.md, sections.json, source.json}
 src/ingest.ts             the G1.1 pipeline
 src/constitution.ts       which Constitution is in force; the splitter (sections + guardrails)
@@ -134,6 +139,12 @@ first five analyses cold) is a process, not code.
 
 ## Known gaps
 
+- The Net Change Limit is a reading of the DRep vote on an Info action, not
+  a ledger state: `context/treasury.yaml` writes that reading down with the
+  action it cites, and the code checks the DRep Yes against the bar. The
+  Constitutional Committee's threshold is its quorum, not a protocol
+  parameter: reported as unknown. ParameterChange DRep thresholds depend on
+  the parameter group: reported as unknown.
 - One indexer (Koios). `security.md` names cross-checking against a second
   provider as the mitigation for a lying indexer; not built.
 - `ipfs://` anchors go through `IPFS_GATEWAY` (default in `.env.example`:

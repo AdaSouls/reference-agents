@@ -1,0 +1,23 @@
+[
+ {
+  "proposal_type": "InfoAction",
+  "epoch_no": 666,
+  "drep_yes_votes_cast": 300,
+  "drep_yes_vote_power": "3000000000000000",
+  "drep_yes_pct": 62.35,
+  "drep_no_votes_cast": 100,
+  "drep_no_vote_power": "1800000000000000",
+  "drep_no_pct": 37.65,
+  "drep_abstain_votes_cast": 10,
+  "pool_yes_votes_cast": 10,
+  "pool_no_votes_cast": 2,
+  "pool_abstain_votes_cast": 0,
+  "pool_yes_pct": 2.73,
+  "pool_no_pct": 97.27,
+  "committee_yes_votes_cast": 5,
+  "committee_no_votes_cast": 0,
+  "committee_abstain_votes_cast": 1,
+  "committee_yes_pct": 83.33,
+  "committee_no_pct": 16.67
+ }
+]

@@ -23,7 +23,7 @@ export function documentFieldText(document: ProposalDocument, field: DocumentFie
  * Prompts are versioned files under prompts/ (STANDARD.md rule 7).
  */
 
-export const PROMPT_VERSION = "analyse.v2";
+export const PROMPT_VERSION = "analyse.v3";
 
 export const analysisSchema = z
   .object({
@@ -300,7 +300,7 @@ export function renderMarkdown(record: AnalysisRecord, facts: Facts, constitutio
 | Anchor | ${facts.anchor.url ? `\`${facts.anchor.url}\`` : "none"} — ${anchorLine} |
 | Constitution version | \`${record.constitutionHash}\` |
 
-## Summary
+${renderContext(facts)}## Summary
 
 ${a.summary}
 
@@ -348,6 +348,63 @@ ${a.conflictOfInterest.applies ? `**Applies.** ${a.conflictOfInterest.reason}` :
 | --- | --- | --- | --- |
 ${a.figures.map((f) => `| ${f.label} | ${f.value} | \`${f.source}\` | ${figureKind(f.source) === "verified" ? "verified on chain" : "stated by the proposer, not verified"} |`).join("\n") || "| (none) | | | |"}
 `;
+}
+
+/** Voting state, treasury and proposer history: code-derived facts, shown before the model's text. */
+export function renderContext(facts: Facts): string {
+  const out: string[] = [];
+  const v = facts.voting;
+  if (v) {
+    const cls = (name: string, c: { yesPct: number | null; noPct: number | null; votesCast: { yes: number; no: number; abstain: number }; thresholdPct: number | null; meetsThreshold: boolean | null }) =>
+      c.yesPct == null && c.thresholdPct == null && c.votesCast.yes + c.votesCast.no + c.votesCast.abstain === 0
+        ? `| ${name} | — | — | — | ${c.thresholdPct != null ? `${c.thresholdPct}%` : "does not vote / unknown"} | — |`
+        : `| ${name} | ${c.yesPct ?? "unknown"}% | ${c.noPct ?? "unknown"}% | ${c.votesCast.yes} / ${c.votesCast.no} / ${c.votesCast.abstain} | ${c.thresholdPct != null ? `${c.thresholdPct}%` : "unknown"} | ${c.meetsThreshold == null ? "unknown" : c.meetsThreshold ? "yes" : "no"} |`;
+    out.push(
+      `## Where the vote stands (epoch ${v.asOfEpoch}, ${v.fetchedAt})`,
+      "",
+      "| Class | Yes | No | Votes cast (Y / N / A) | Threshold | Meets it |",
+      "| --- | --- | --- | --- | --- | --- |",
+      cls("DReps", v.drep),
+      cls("SPOs", v.spo),
+      cls("Constitutional Committee", v.committee),
+      "",
+      `**Passing now:** ${v.passingNow == null ? "unknown" : v.passingNow ? "yes" : "no"}. ${v.note}`,
+      ""
+    );
+  }
+  const t = facts.treasury;
+  if (t) {
+    const n = t.netChangeLimit;
+    out.push(
+      `## Treasury (epoch ${t.asOfEpoch})`,
+      "",
+      "| | |",
+      "| --- | --- |",
+      `| Treasury balance | ${t.balanceAda ? `${t.balanceAda} ADA` : "unknown"} |`,
+      `| Net Change Limit | ${n ? `${n.ada} ADA for epochs ${n.epochs.from}–${n.epochs.to} (Info action \`${n.actionKey}\`; DRep Yes ${n.drepYesPct ?? "?"}%, ${n.agreed == null ? "agreement unknown" : n.agreed ? "agreed" : "**not agreed by the policy's bar**"}) |` : "none configured |"}`,
+      `| Enacted withdrawals in the period | ${t.enactedInPeriodAda ? `${t.enactedInPeriodAda} ADA` : "unknown"} |`,
+      `| Remaining under the limit | ${t.remainingAda ? `${t.remainingAda} ADA` : "unknown"} |`,
+      `| This action | ${t.thisActionAda} ADA — ${t.fitsRemaining == null ? "fit unknown" : t.fitsRemaining ? "fits" : "**exceeds what remains**"} |`,
+      `| Other open withdrawals | ${t.otherOpenWithdrawalsAda} ADA |`,
+      "",
+      t.note,
+      ""
+    );
+  }
+  const h = facts.proposerHistory;
+  if (h && h.returnAddress) {
+    out.push(
+      `## Other actions from the same return address`,
+      "",
+      h.actions.length
+        ? ["| Action | Type | Proposed | Outcome | Withdrawals | Title (proposer's text) |", "| --- | --- | --- | --- | --- | --- |", ...h.actions.map((a) => `| \`${a.key.slice(0, 8)}…-${a.key.split("-")[1]}\` | ${a.type} | ${a.proposedEpoch ?? "?"} | ${a.outcome} | ${a.withdrawalsAda ? `${a.withdrawalsAda} ADA` : ""} | ${a.titleClaimed ?? ""} |`)].join("\n")
+        : "- (none)",
+      "",
+      h.note,
+      ""
+    );
+  }
+  return out.length ? out.join("\n") + "\n" : "";
 }
 
 /** The CIP-100 rationale draft, from cardano-governance's template shape. The human edits `comment` in review. */
