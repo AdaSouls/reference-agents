@@ -10,7 +10,7 @@ import { syncConstitution } from "./constitution-sync.js";
 import { anthropicCompleter } from "./model.js";
 import { anchorUrl, hashFile, publish } from "./publish.js";
 import { decidedByFromEscalation, reviewAction, type Vote } from "./review.js";
-import { generateKeyFile, loadSigner } from "./signing.js";
+import { AlmaRefusal, guard, loadAgentSigner, loadAlma, selfIssuer, type Command } from "./alma.js";
 import { ingest } from "./ingest.js";
 import { KoiosClient } from "./koios.js";
 import { ActionStore, ConstitutionStore } from "./store.js";
@@ -22,7 +22,7 @@ import { ActionStore, ConstitutionStore } from "./store.js";
  * gov analyse <tx>-<ix>   the analysis: facts + Constitution + the proposer's document -> model -> checks -> files
  * gov review <tx>-<ix> --vote Yes|No|Abstain --reason "..." [--comment-file f]
  *                         the human's decision: final rationale + its anchor hash, decision.json, signatures
- * gov keygen <file>       a new analysis key (PKCS#8); prints kid and public key, never the private key
+ * gov whoami              the agent's ALMA: identity, principal, delegation, rules, almaVersion, key id
  * gov publish [--all]     copy decided actions into cardano-governance/votes/ and regenerate its README
  * gov anchor <tx>-<ix> --commit <sha> [--check]   the immutable raw URL for the vote's anchor, and its hash
  * gov hash <file>         blake2b-256 of a file (= cardano-cli hash anchor-data --file-text)
@@ -40,11 +40,21 @@ if (process.env.HTTPS_PROXY || process.env.https_proxy || process.env.HTTP_PROXY
 
 const env = (name: string, fallback?: string): string | undefined => process.env[name]?.trim() || fallback;
 
+const projectDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+
 async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   const store = new ActionStore(env("DATA_DIR", "./data")!);
+  const network = env("CARDANO_NETWORK", "cardano:mainnet")!;
+  // Every command that acts reads the agent's ALMA first and refuses outside it.
+  const almaFor = async (cmd: Command, ctx: { actionType?: string; includeUndecided?: boolean } = {}) => {
+    const alma = loadAlma(projectDir);
+    guard(alma, cmd, { network, ...ctx });
+    return alma;
+  };
   switch (command) {
     case "ingest": {
+      await almaFor("ingest");
       const koios = new KoiosClient({ baseUrl: env("KOIOS_BASE_URL"), apiKey: env("KOIOS_API_KEY") });
       const summary = await ingest(koios, store, {
         all: rest.includes("--all"),
@@ -61,6 +71,7 @@ async function main(argv: string[]): Promise<number> {
       return summary.mismatch > 0 ? 2 : 0;
     }
     case "constitution": {
+      await almaFor("constitution");
       const koios = new KoiosClient({ baseUrl: env("KOIOS_BASE_URL"), apiKey: env("KOIOS_API_KEY") });
       const result = await syncConstitution(koios, new ConstitutionStore(env("DATA_DIR", "./data")!), {
         anchor: {
@@ -86,7 +97,8 @@ async function main(argv: string[]): Promise<number> {
         console.error("usage: gov analyse <tx>-<ix>");
         return 1;
       }
-      const promptsDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "prompts");
+      const alma = await almaFor("analyse", { actionType: (await store.readOnchain(key))?.proposal_type });
+      const promptsDir = path.join(projectDir, "prompts");
       const policyPath = env("CONFLICT_OF_INTEREST_POLICY");
       const policy = policyPath ? await readFile(policyPath, "utf8") : env("COI_TERMS") ? `Parties and topics that trigger a conflict of interest: ${env("COI_TERMS")}` : "";
       try {
@@ -96,6 +108,7 @@ async function main(argv: string[]): Promise<number> {
           conflictOfInterestPolicy: policy,
           analysisUrlTemplate: env("ANALYSIS_URL_TEMPLATE"),
           maxAttempts: Number(env("ANALYSIS_MAX_ATTEMPTS", "3")),
+          provenance: { agent: alma.identity!.id, almaVersion: alma.almaVersion },
           log: (line) => console.log(line),
         });
         return 0;
@@ -120,11 +133,9 @@ async function main(argv: string[]): Promise<number> {
         console.error('usage: gov review <tx>-<ix> --vote Yes|No|Abstain --reason "why" [--comment-file rationale-comment.txt]');
         return 1;
       }
-      const here = path.dirname(fileURLToPath(import.meta.url));
-      const decidedBy = await decidedByFromEscalation(path.join(here, "..", "escalation.yaml"));
-      const keyFile = env("ANALYSIS_KEY_FILE");
-      const signer = keyFile ? await loadSigner(keyFile) : undefined;
-      if (!signer) console.log("ANALYSIS_KEY_FILE not set: the decision is recorded but not signed");
+      const alma = await almaFor("review");
+      const decidedBy = await decidedByFromEscalation(path.join(projectDir, "escalation.yaml"));
+      const signer = await loadAgentSigner(alma);
       const commentFile = flag("comment-file");
       const r = await reviewAction(key, store, {
         vote,
@@ -132,22 +143,40 @@ async function main(argv: string[]): Promise<number> {
         rationaleComment: commentFile ? await readFile(commentFile, "utf8") : undefined,
         decidedBy,
         signer,
+        issuer: selfIssuer(alma.identity!.id),
+        provenance: { agent: alma.identity!.id, almaVersion: alma.almaVersion },
       });
       console.log(`decision: ${r.decision.vote} by ${decidedBy.person}${r.decision.agreesWithAnalysis ? "" : ` (analysis suggested ${r.decision.suggestedVote})`}`);
       console.log(`rationale: ${r.files.rationale}`);
       console.log(`anchor hash (= cardano-cli hash anchor-data --file-text): ${r.decision.rationale.anchorHash}`);
-      if (r.files.decisionSignature) console.log(`signed: ${r.files.analysisSignature}, ${r.files.decisionSignature} (kid ${signer!.kid})`);
+      if (r.files.decisionSignature) console.log(`signed by ${alma.identity!.id}: ${r.files.analysisSignature}, ${r.files.decisionSignature} (kid ${signer.kid})`);
       console.log("next: publish rationale.jsonld at a fixed URL, then vote with the Ledger per cardano-governance/docs/runbooks/drep-vote.md");
       return 0;
     }
     case "keygen": {
-      const file = rest[0];
-      if (!file) {
-        console.error("usage: gov keygen <path to new key file>");
-        return 1;
+      console.error("`gov keygen` is gone: the agent signs with its ALMA key. Run `alma connect` in this directory (see README), then `gov whoami`.");
+      return 1;
+    }
+    case "whoami": {
+      const alma = loadAlma(projectDir);
+      console.log(`I am ${alma.identity?.id ?? "(no ALMA identity yet: run `alma connect`)"}${alma.identity?.principal ? `, for ${alma.identity.principal}` : ""}.`);
+      console.log(`Rules: alma.yaml ${alma.almaVersion}`);
+      console.log(`  capabilities: ${alma.capabilities.join(", ")}`);
+      console.log(`  networks: ${alma.governance.networks.join(", ")}  (this run: ${network})`);
+      console.log(`  action types: ${alma.governance.actionTypes?.join(", ") ?? "all"}`);
+      console.log(`  a person decides: ${alma.governance.humanDecides?.join(", ") ?? "nothing reserved"}`);
+      console.log(`  analyses published: ${alma.governance.publish ?? "after-decision"}`);
+      console.log(
+        alma.delegation
+          ? `Delegated by ${alma.delegation.issuer}: [${alma.delegation.scope.capabilities.join(", ")}]${alma.delegation.expiresAt ? ` until ${alma.delegation.expiresAt.slice(0, 10)}` : ""}`
+          : "No active delegation: run `alma connect` (or `alma limits` to renew)."
+      );
+      try {
+        console.log(`Signing key: ${(await loadAgentSigner(alma)).kid}`);
+      } catch {
+        console.log("Signing key: none yet (alma connect creates .alma/issuer.key)");
       }
-      const { kid, publicKeyHex } = await generateKeyFile(file);
-      console.log(`analysis key written to ${file} (mode 600). Publish these, keep the file private:\n  kid: ${kid}\n  public key (hex): ${publicKeyHex}`);
+      console.log("Enforcement: declared and self-enforced (ADVISORY). This agent refuses commands outside alma.yaml; nothing on chain enforces it.");
       return 0;
     }
     case "publish": {
@@ -156,6 +185,7 @@ async function main(argv: string[]): Promise<number> {
         console.error("set GOVERNANCE_DIR to a checkout of AdaSouls/cardano-governance");
         return 1;
       }
+      await almaFor("publish", { includeUndecided: rest.includes("--all") });
       const published = await publish(store, { governanceDir, includeUndecided: rest.includes("--all"), log: (line) => console.log(line) });
       console.log(`\n${published.length} action(s) in ${path.join(governanceDir, "votes")}. Review the diff, commit, then \`gov anchor <key> --commit <sha> --check\`.`);
       return 0;
@@ -168,6 +198,7 @@ async function main(argv: string[]): Promise<number> {
         console.error("usage: gov anchor <tx>-<ix> --commit <sha> [--check]");
         return 1;
       }
+      await almaFor("anchor");
       const r = await anchorUrl(key, store, { branchOrCommit: commit, check: rest.includes("--check"), repo: env("GOVERNANCE_REPO") });
       console.log(`--anchor-url ${r.url}`);
       console.log(`--anchor-data-hash ${r.expectedHash}`);
@@ -197,7 +228,7 @@ async function main(argv: string[]): Promise<number> {
       return 0;
     }
     default:
-      console.error("usage: gov <ingest [--all] | constitution | analyse <key> | review <key> --vote V --reason R | publish [--all] | anchor <key> --commit <sha> [--check] | hash <file> | keygen <file> | list>");
+      console.error("usage: gov <ingest [--all] | constitution | analyse <key> | review <key> --vote V --reason R | publish [--all] | anchor <key> --commit <sha> [--check] | hash <file> | whoami | list>");
       return 1;
   }
 }
@@ -205,6 +236,10 @@ async function main(argv: string[]): Promise<number> {
 main(process.argv.slice(2)).then(
   (code) => process.exit(code),
   (err) => {
+    if (err instanceof AlmaRefusal) {
+      console.error(`refused by alma.yaml: ${err.message}`);
+      process.exit(4);
+    }
     console.error(err instanceof Error ? err.message : err);
     process.exit(1);
   }

@@ -1,0 +1,19 @@
+# The governance analyst's rules (STANDARD.md). Committed: a change here is
+# a PR, and a new almaVersion on every record produced afterwards.
+# `alma connect` delegates exactly this from the principal; the agent reads
+# it before every command and refuses to act outside it.
+kind: Agent
+version: alma/v1
+metadata:
+  name: governance-analyst
+identity:
+  type: agent
+capabilities:
+  - analyze
+  - attest
+governance:
+  networks:
+    - cardano:mainnet
+  humanDecides:
+    - vote
+  publish: after-decision

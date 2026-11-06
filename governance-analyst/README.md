@@ -15,7 +15,7 @@ Its outputs go to that repository's `votes/`; its code lives here.
 | 1. Ingest: list open actions on mainnet via Koios, download each anchor, check blake2b-256 against the on-chain hash, store everything under `data/actions/<tx>-<ix>/` | `gov ingest` | **done** (G1.1) |
 | 2. Constitution: the one in force (latest enacted `NewConstitution` action), bytes verified against its on-chain anchor hash, split into sections and guardrails with stable ids (`art-2-sec-7`, `app-1-s2-1`, `PARAM-03a`) | `gov constitution` | **done** (G1.2) |
 | 3. Analysis: one model call over verified facts, the Constitution in force and the proposer's document quoted as data; structured JSON checked before anything is written (every figure cites a `FACTS` path and matches it; every Constitution id exists), then `analysis.md` and a draft CIP-100 rationale | `gov analyse <tx>-<ix>` | **done** (G1.3) |
-| 4. Review: record the human's Yes / No / Abstain and reason (who may decide comes from `escalation.yaml`), write the final CIP-100 rationale from the draft, compute its anchor hash like `cardano-cli hash anchor-data --file-text` (blake2b-256 of the bytes), and sign analysis and decision with the analysis key (`gov keygen`) | `gov review <tx>-<ix> --vote … --reason …` | **done** (G1.4) |
+| 4. Review: record the human's Yes / No / Abstain and reason (who may decide comes from `escalation.yaml`), write the final CIP-100 rationale from the draft, compute its anchor hash like `cardano-cli hash anchor-data --file-text` (blake2b-256 of the bytes), and sign analysis and decision with the agent's ALMA key (`.alma/issuer.key`, from `alma connect`) | `gov review <tx>-<ix> --vote … --reason …` | **done** (G1.4) |
 | 5. Publish: copy decided actions into `cardano-governance/votes/<tx>-<ix>/` and regenerate `votes/README.md`; after you commit, `gov anchor` gives the immutable raw URL at that sha and re-checks the hash of what is actually served | `gov publish`, `gov anchor <tx>-<ix> --commit <sha> --check` | **done** (G1.5, files); events to the explorer wait for `alma-attestation/1` |
 
 ## What it never does
@@ -36,15 +36,21 @@ cp .env.example .env         # the public Koios endpoint needs no key
 npm start -- ingest          # open actions; add --all for closed ones too
                              # honours HTTPS_PROXY; set NODE_EXTRA_CA_CERTS behind a TLS-inspecting proxy
 npm start -- constitution   # the Constitution in force; IPFS_GATEWAY and CONSTITUTION_MIRRORS in .env
+npx @adasouls/alma-cli connect --agent governance-analyst --org alma:main:org:adasouls -y
+                             # once per deployment: identity, delegation of alma.yaml, issuer.key in .alma/
+npm start -- whoami          # ALMA id, principal, delegation, almaVersion, kid
 npm start -- analyse <tx>-<ix>   # needs ANTHROPIC_API_KEY; exit 3 = the model's answer failed a check, nothing written
-npm start -- keygen .keys/analysis.key   # once; put the path in ANALYSIS_KEY_FILE, publish kid + public key
 npm start -- review <tx>-<ix> --vote No --reason "why"   # writes rationale.jsonld, decision.json, *.sig.json
 npm start -- publish                      # into $GOVERNANCE_DIR/votes/; then git commit there
 npm start -- anchor <tx>-<ix> --commit <sha> --check   # --anchor-url and --anchor-data-hash for the vote
 npm start -- list
 ```
 
-Exit code 2 when any anchor mismatched, so a cron job notices.
+Exit code 2 when any anchor mismatched, so a cron job notices. Exit code 4
+when `alma.yaml` or the delegation doesn't allow the command
+(`refused by alma.yaml: …`): `analyse`, `review` and `publish` need an
+identity and an active delegation; `ingest` and `constitution` only read
+public data and run without one.
 
 ```
 verified    8d6c…-0  InfoAction          14213 bytes
@@ -58,7 +64,10 @@ to the verdict (`check.json`): a reviewer can see what was there.
 ## Layout
 
 ```
-governance-analyst.yaml   ALMA manifest: capabilities analyze, attest; no pay
+alma.yaml                 ALMA manifest: analyze, attest; no pay, no vote;
+                          governance: cardano:mainnet, the vote is a person's, publish after decision
+.alma/                    identity, delegation, issuer.key (alma connect; not in git)
+src/alma.ts               loads alma.yaml + .alma/, guard() before every command
 agent.yaml                profile, scope, budgets
 escalation.yaml           the vote is the human's; who, how, recorded where
 security.md               threat model
@@ -106,10 +115,13 @@ CIP-100 draft the human edits in review.
 
 After `gov review`: `rationale.jsonld` (final, what gets anchored),
 `decision.json` (vote, reason, whether it agrees with the analysis, the
-analysis digest, the rationale's anchor hash, who decided, when) and, with
-`ANALYSIS_KEY_FILE`, `analysis.sig.json` and `decision.sig.json`: Ed25519
-envelopes in alma-core's issuer-signature shape (`t`, `iss`, `kid` inside
-the payload, JCS bytes signed). Types `alma-governance-analysis/draft-1`
+analysis digest, the rationale's anchor hash, who decided, when),
+`analysis.sig.json` and `decision.sig.json`: Ed25519 envelopes signed with
+the agent's ALMA key, in alma-core's issuer-signature shape (`t`, `iss` =
+`self:<agent ALMA id>`, `kid`, `agent`, `almaVersion` inside the payload,
+JCS bytes signed). `analysis.json` also names the agent, the `almaVersion`
+and every source with its digest (Koios JSON sha-256, anchor and
+Constitution blake2b-256). Types `alma-governance-analysis/draft-1`
 and `alma-governance-decision/draft-1` until G6.1 lands `alma-attestation/1`
 in `alma-core`; verifiable now with the published public key.
 

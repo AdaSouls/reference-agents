@@ -2,9 +2,14 @@
 
 ## What this agent holds
 
-- `ANALYSIS_KEY_FILE`: an Ed25519 key that signs records (analysis, decision)
-  in alma-core's issuer-signature format. It moves no money and casts no
-  vote. Read from a path, never printed or logged.
+- `.alma/issuer.key`: the agent's ALMA key, made by `alma connect`. Ed25519,
+  signs records (analysis, decision) in alma-core's issuer-signature format.
+  It moves no money and casts no vote. Mode 600, never committed, printed
+  or logged. A stolen copy can sign records in the agent's name until the
+  principal revokes the delegation; it can't move anything.
+- `alma.yaml` + `.alma/delegations.json`: the rules. Self-enforced
+  (`src/alma.ts`), so a compromised host can ignore them; what it can't do is
+  make its records claim a different `almaVersion` than the file it ran.
 - `ANTHROPIC_API_KEY`: model access. From the environment only.
 - Nothing else. No DRep key, no pool key, no wallet.
 

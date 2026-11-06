@@ -157,7 +157,7 @@ describe("ingest", () => {
 describe("standard", () => {
   it("the ALMA manifest parses and grants no payment capability", async () => {
     const { parseManifestYaml } = await import("@adasouls/alma-manifest");
-    const manifest = parseManifestYaml(await readFile(path.join(import.meta.dirname, "..", "governance-analyst.yaml"), "utf8"));
+    const manifest = parseManifestYaml(await readFile(path.join(import.meta.dirname, "..", "alma.yaml"), "utf8"));
     expect(manifest.metadata.name).toBe("governance-analyst");
     expect(manifest.capabilities).not.toContain("pay");
     expect(manifest.authority?.maxTransaction).toBeUndefined();

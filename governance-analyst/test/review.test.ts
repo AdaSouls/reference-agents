@@ -47,7 +47,7 @@ describe("gov review", () => {
       hash: ch, anchorUrl: "ipfs://x", actionKey: "k", proposalId: "g", enactedEpoch: 609, verifiedAt: "", bytes: 1, sections: 1, guardrails: 1,
     });
     key = `${"1".repeat(64)}-0`;
-    await analyseAction(key, actions, constitutions, { system: "s", completer, conflictOfInterestPolicy: "" });
+    await analyseAction(key, actions, constitutions, { provenance: { agent: "alma:main:agent:test", almaVersion: "a".repeat(64) }, system: "s", completer, conflictOfInterestPolicy: "" });
   });
   afterEach(async () => {
     await rm(dataDir, { recursive: true, force: true });
@@ -83,11 +83,11 @@ describe("gov review", () => {
     const { kid, publicKeyHex } = await generateKeyFile(keyFile);
     const signer = await loadSigner(keyFile);
     expect(signer.kid).toBe(kid);
-    const r = await reviewAction(key, actions, { vote: "Yes", reason: "ok", decidedBy: { person: "Matías Falcone", role: "DRep" }, signer });
+    const r = await reviewAction(key, actions, { vote: "Yes", reason: "ok", decidedBy: { person: "Matías Falcone", role: "DRep" }, signer, issuer: "self:alma:main:agent:test", provenance: { agent: "alma:main:agent:test", almaVersion: "b".repeat(64) } });
     const pub = Uint8Array.from(publicKeyHex.match(/../g)!, (h) => parseInt(h, 16));
     const dec = JSON.parse(await readFile(r.files.decisionSignature!, "utf8"));
     const ana = JSON.parse(await readFile(r.files.analysisSignature!, "utf8"));
-    expect(dec.payload).toMatchObject({ t: "alma-governance-decision/draft-1", iss: "adasouls.io", kid, vote: "Yes", rationaleHash: r.decision.rationale.anchorHash, decidedBy: "Matías Falcone" });
+    expect(dec.payload).toMatchObject({ t: "alma-governance-decision/draft-1", iss: "self:alma:main:agent:test", agent: "alma:main:agent:test", almaVersion: "b".repeat(64), kid, vote: "Yes", rationaleHash: r.decision.rationale.anchorHash, decidedBy: "Matías Falcone" });
     expect(ana.payload).toMatchObject({ t: "alma-governance-analysis/draft-1", kid, analysisDigest: r.decision.analysisDigest });
     expect(await verifyRecord(dec, pub)).toBe(true);
     expect(await verifyRecord(ana, pub)).toBe(true);
