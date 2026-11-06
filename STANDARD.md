@@ -26,7 +26,12 @@ logs or prints a key that moves money or votes.
 ```
 <agent>/
   README.md             what it does, what it never does, how to run it
-  <agent>.yaml          ALMA Agent Manifest: identity, capabilities, authority
+  alma.yaml             ALMA Agent Manifest: identity, capabilities, authority, rules
+                        (committed; its blake2b-256 is the agent's almaVersion)
+  .alma/                written by `alma connect` per deployment, never committed:
+                          identity.json     the agent's ALMA id and its principal
+                          delegations.json  what the principal delegated, until when
+                          issuer.key        the agent's record-signing key (mode 600)
   agent.yaml            profile: goal, scope, orchestration pattern, budgets
   escalation.yaml       which decisions need a human, who, with what expiry
   security.md           threat model: untrusted inputs, keys, what a compromise can do
@@ -58,8 +63,8 @@ new version: nothing, by default), `CHANGELOG.md`.
    recorded, never skipped.
 3. **No key that moves money or votes.** Not in `.env`, not in memory, not
    in logs. Signing keys for *records* (Ed25519, alma-core issuer-signature
-   format) are allowed; they come from a path in the environment and are
-   never printed.
+   format) are allowed; the agent's own is `.alma/issuer.key`, made by
+   `alma connect`, and is never printed or committed.
 4. **Every output is an event.** What the agent produces goes out as a
    signed envelope (`alma-attestation/1` with a `type` from the catalogue,
    or a receipt / report / delivery where those fit), with the version of
@@ -78,6 +83,16 @@ new version: nothing, by default), `CHANGELOG.md`.
 8. **Escalation is written down.** `escalation.yaml` names the decisions a
    human takes, who that is, and how long an approval is good for. The
    `decidedBy` block in an event must match it.
+9. **The agent reads its ALMA before it acts.** Every command loads
+   `alma.yaml` and `.alma/`, and refuses (non-zero exit, the reason
+   printed) when the command is outside them: a capability it doesn't
+   declare or wasn't delegated, an expired or revoked delegation, a network
+   or action type not listed, a decision `humanDecides` doesn't reserve to a
+   person. Commands that sign need an identity and an active delegation;
+   commands that only read public data don't. Self-enforced rules are
+   ADVISORY to a verifier; the point is that every record names the agent
+   (`agent`, `iss`) and the exact rules it ran under (`almaVersion`).
+
 
 ## Event catalogue
 
@@ -100,7 +115,8 @@ the contract.
 ## Checklist for a new agent
 
 - [ ] Directory with the layout above; `README.md` has a "What it never does" section.
-- [ ] Manifest validates with `@adasouls/alma-manifest`.
+- [ ] `alma.yaml` validates with `@adasouls/alma-manifest`; `alma connect` in the agent's directory gives it an identity and a delegation.
+- [ ] Rule 9: a guard runs before every command, with a test per refusal.
 - [ ] `escalation.yaml` and `security.md` written before the first line of `src/`.
 - [ ] Every event type has a schema under `events/schemas/` and a fixture that validates against it.
 - [ ] `npm test` passes offline; CI job added to `.github/workflows/ci.yml`.

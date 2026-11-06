@@ -23,6 +23,8 @@ export interface AnalyseOptions {
    * is sent back with the exact problems; the checks are never relaxed.
    */
   maxAttempts?: number;
+  /** Who is producing this and under which rules (from the agent's ALMA). */
+  provenance: { agent: string | null; almaVersion: string };
   /** URL the rationale will point at; `{key}` is replaced. */
   analysisUrlTemplate?: string;
   now?: () => Date;
@@ -98,6 +100,13 @@ export async function analyseAction(
     v: "alma-governance-analysis/draft-1",
     key,
     actionId: facts.actionId,
+    agent: options.provenance.agent,
+    almaVersion: options.provenance.almaVersion,
+    sources: [
+      { name: "koios", ref: "/proposal_list", digest: await sha256Hex(new TextEncoder().encode(JSON.stringify(onchain))) },
+      { name: "anchor", ref: facts.anchor.url ?? "(none)", digest: bytes ? anchorDigest(bytes) : null },
+      { name: "constitution", ref: hash, digest: hash },
+    ],
     constitutionHash: hash,
     promptVersion: PROMPT_VERSION,
     model: options.completer.model,
@@ -119,4 +128,9 @@ export async function analyseAction(
   await writeFile(files.rationale, JSON.stringify(draftRationale(record, facts, url), null, 2) + "\n");
   log(`suggested ${analysis.suggestedVote.vote} (confidence ${analysis.suggestedVote.confidence}); ${analysis.openQuestions.length} open questions; written to ${dir}`);
   return { record, facts, files };
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const d = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new Uint8Array(bytes)));
+  return Array.from(d, (b) => b.toString(16).padStart(2, "0")).join("");
 }

@@ -43,7 +43,7 @@ describe("gov publish / gov anchor", () => {
         });
       },
     };
-    for (const k of keys) await analyseAction(k, actions, constitutions, { system: "s", completer, conflictOfInterestPolicy: "" });
+    for (const k of keys) await analyseAction(k, actions, constitutions, { provenance: { agent: "alma:main:agent:test", almaVersion: "a".repeat(64) }, system: "s", completer, conflictOfInterestPolicy: "" });
     // Only the first one is decided.
     await reviewAction(keys[0], actions, { vote: "Abstain", reason: "conflict", decidedBy: { person: "Matías Falcone", role: "DRep" }, now: () => new Date("2026-11-04T03:00:00Z") });
   });

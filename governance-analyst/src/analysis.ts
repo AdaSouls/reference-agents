@@ -44,10 +44,24 @@ export const analysisSchema = z
   .strict();
 export type Analysis = z.infer<typeof analysisSchema>;
 
+export interface AnalysisSource {
+  name: "koios" | "anchor" | "constitution";
+  /** Where it came from: an endpoint, the anchor URL, the Constitution's action key. */
+  ref: string;
+  /** blake2b-256 (anchor, constitution) or sha-256 (koios record) of the bytes used, hex. */
+  digest: string | null;
+}
+
 export interface AnalysisRecord {
   v: "alma-governance-analysis/draft-1";
   key: string;
   actionId: string;
+  /** The ALMA id of the agent that produced it (null only in tests without an identity). */
+  agent: string | null;
+  /** blake2b-256 of the alma.yaml it ran under. */
+  almaVersion: string;
+  /** Every input, with the digest of exactly the bytes used (STANDARD.md rule 4). */
+  sources: AnalysisSource[];
   constitutionHash: string;
   promptVersion: string;
   model: string;
@@ -273,7 +287,7 @@ export function renderMarkdown(record: AnalysisRecord, facts: Facts, constitutio
       : `**${facts.anchor.status}**${facts.anchor.detail ? ` — ${facts.anchor.detail}` : ""}; the document may not be what the proposer committed to`;
   return `# ${facts.type} · ${facts.actionId}
 
-> Prepared by the AdaSouls governance analyst (model ${record.model}, prompt ${record.promptVersion}) on ${record.analysedAt}${record.attempts && record.attempts.count > 1 ? `, after ${record.attempts.count} attempts (earlier answers failed: ${record.attempts.rejected.map((r) => r.check).join(", ")})` : ""}.
+> Prepared by the AdaSouls governance analyst${record.agent ? ` \`${record.agent}\`` : ""} under alma.yaml \`${record.almaVersion.slice(0, 16)}…\` (model ${record.model}, prompt ${record.promptVersion}) on ${record.analysedAt}${record.attempts && record.attempts.count > 1 ? `, after ${record.attempts.count} attempts (earlier answers failed: ${record.attempts.rejected.map((r) => r.check).join(", ")})` : ""}.
 > **This is an analysis, not a vote.** A named person reads it, decides, and signs. Figures come from on-chain data; the suggested vote and its confidence are the model's and are marked as declared.
 
 | | |

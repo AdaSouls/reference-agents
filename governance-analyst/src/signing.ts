@@ -13,13 +13,12 @@ const toBase64Url = (b: Uint8Array) => Buffer.from(b).toString("base64url");
  * The two types here are *drafts* of what G6.1 will add to alma-core as
  * `alma-attestation/1`; until then they are verifiable by anyone with the
  * published key but are not accepted by the transparency log. The key is
- * the AdaSouls analysis key: it signs records and moves nothing. It is read
- * from ANALYSIS_KEY_FILE (PKCS#8 DER) and never printed.
+ * the agent's ALMA key (.alma/issuer.key, PKCS#8 DER, from `alma connect`):
+ * it signs records and moves nothing, and is never printed.
  */
 
 export const ANALYSIS_RECORD_TYPE = "alma-governance-analysis/draft-1";
 export const DECISION_RECORD_TYPE = "alma-governance-decision/draft-1";
-export const ISSUER = "adasouls.io";
 
 export interface SignedEnvelope<P extends Record<string, string | number | boolean | null>> {
   payload: P;

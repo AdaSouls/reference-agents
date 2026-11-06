@@ -3,7 +3,7 @@ import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { anchorDigest } from "./anchor.js";
 import type { AnalysisRecord } from "./analysis.js";
-import { ANALYSIS_RECORD_TYPE, DECISION_RECORD_TYPE, ISSUER, signRecord, type SignedEnvelope } from "./signing.js";
+import { ANALYSIS_RECORD_TYPE, DECISION_RECORD_TYPE, signRecord, type SignedEnvelope } from "./signing.js";
 import type { LocalSigner } from "@adasouls/alma-core";
 import type { ActionStore } from "./store.js";
 
@@ -46,6 +46,9 @@ export interface ReviewInput {
   decidedBy: DecidedBy;
   /** Optional: sign analysis and decision. Without it, review still records the decision. */
   signer?: LocalSigner;
+  /** Who signs (`self:<alma id>` for the agent's own key) and under which rules. Required with a signer. */
+  issuer?: string;
+  provenance?: { agent: string; almaVersion: string };
   now?: () => Date;
 }
 
@@ -112,11 +115,14 @@ export async function reviewAction(key: string, actions: ActionStore, input: Rev
 
   const files: ReviewResult["files"] = { decision: decisionFile, rationale: rationaleFile };
   if (input.signer) {
+    if (!input.issuer || !input.provenance) throw new Error("signing needs the agent's issuer and provenance (its ALMA)");
     const ts = now.toISOString().replace(/\.\d{3}Z$/, "Z");
     const analysisEnvelope = await signRecord(input.signer, {
       t: ANALYSIS_RECORD_TYPE,
-      iss: ISSUER,
+      iss: input.issuer,
       kid: input.signer.kid,
+      agent: input.provenance.agent,
+      almaVersion: record.almaVersion ?? input.provenance.almaVersion,
       action: record.actionId,
       key,
       analysisDigest,
@@ -128,8 +134,10 @@ export async function reviewAction(key: string, actions: ActionStore, input: Rev
     });
     const decisionEnvelope = await signRecord(input.signer, {
       t: DECISION_RECORD_TYPE,
-      iss: ISSUER,
+      iss: input.issuer,
       kid: input.signer.kid,
+      agent: input.provenance.agent,
+      almaVersion: input.provenance.almaVersion,
       action: record.actionId,
       key,
       vote: input.vote,

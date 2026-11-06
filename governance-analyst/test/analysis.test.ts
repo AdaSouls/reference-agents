@@ -222,12 +222,16 @@ describe("gov analyse end to end (model simulated)", () => {
     const { actions, constitutions, key } = await prepare();
     const completer = fake(goodAnalysis);
     const r = await analyseAction(key, actions, constitutions, {
-      system: await loadSystemPrompt(promptsDir),
+      provenance: { agent: "alma:main:agent:test", almaVersion: "a".repeat(64) }, system: await loadSystemPrompt(promptsDir),
       completer,
       conflictOfInterestPolicy: "AdaSouls, SOULS",
       now: () => new Date("2026-11-04T01:00:00Z"),
     });
     expect(r.record.model).toBe("fake-model");
+    expect(r.record).toMatchObject({ agent: "alma:main:agent:test", almaVersion: "a".repeat(64) });
+    expect(r.record.sources.map((s) => s.name)).toEqual(["koios", "anchor", "constitution"]);
+    for (const s of r.record.sources) expect(s.digest).toMatch(/^[0-9a-f]{64}$/);
+    expect(r.record.sources[2].digest).toBe(r.record.constitutionHash);
     expect(r.record.constitutionHash).toMatch(/^[0-9a-f]{64}$/);
     expect(r.record.checks).toEqual({ figures: "ok", citations: "ok" });
     expect(completer.prompts[0]).toContain("Tampered anchor");
@@ -245,7 +249,7 @@ describe("gov analyse end to end (model simulated)", () => {
     const { actions, constitutions, key } = await prepare();
     const completer = fake(() => ({ ...goodAnalysis(), budgetNotes: "Plus 5,000,000 ADA in year two." }));
     await expect(
-      analyseAction(key, actions, constitutions, { system: "s", completer, conflictOfInterestPolicy: "" })
+      analyseAction(key, actions, constitutions, { provenance: { agent: "alma:main:agent:test", almaVersion: "a".repeat(64) }, system: "s", completer, conflictOfInterestPolicy: "" })
     ).rejects.toBeInstanceOf(AnalysisRejected);
     expect(completer.prompts).toHaveLength(3);
     await expect(readFile(path.join(actions.dir(key), "analysis.json"))).rejects.toThrow();
@@ -268,7 +272,7 @@ describe("gov analyse end to end (model simulated)", () => {
         return JSON.stringify(goodAnalysis());
       },
     };
-    const r = await analyseAction(key, actions, constitutions, { system: "s", completer, conflictOfInterestPolicy: "" });
+    const r = await analyseAction(key, actions, constitutions, { provenance: { agent: "alma:main:agent:test", almaVersion: "a".repeat(64) }, system: "s", completer, conflictOfInterestPolicy: "" });
     expect(histories).toEqual([0, 2]);
     expect(r.record.attempts.count).toBe(2);
     expect(r.record.attempts.rejected[0].check).toBe("schema");
