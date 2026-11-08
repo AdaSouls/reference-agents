@@ -39,6 +39,8 @@ npm start -- constitution   # the Constitution in force; IPFS_GATEWAY and CONSTI
 npx @adasouls/alma-cli connect --agent governance-analyst --org alma:main:org:adasouls -y
                              # once per deployment: identity, delegation of alma.yaml, issuer.key in .alma/
 npm start -- whoami          # ALMA id, principal, delegation, almaVersion, kid
+npm run check                # the standard, checked by a machine (tools/agent-check); CI runs it
+npm run eval -- --replay     # the three eval cases against their recordings; --record re-records with the model
 npm start -- analyse <tx>-<ix>   # needs ANTHROPIC_API_KEY; exit 3 = the model's answer failed a check, nothing written
                                  # takes a Koios snapshot first (votes, thresholds, treasury); --offline reuses the stored one
 npm start -- review <tx>-<ix> --vote No --reason "why"   # writes rationale.jsonld, decision.json, *.sig.json
@@ -65,6 +67,7 @@ to the verdict (`check.json`): a reviewer can see what was there.
 ## Layout
 
 ```
+evals/cases/              what a good analysis of each fixture action must do; evals/recorded/ holds the model's answers
 alma.yaml                 ALMA manifest: analyze, attest; no pay, no vote;
                           governance: cardano:mainnet, the vote is a person's, publish after decision
 .alma/                    identity, delegation, issuer.key (alma connect; not in git)

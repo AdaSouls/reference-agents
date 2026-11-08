@@ -1,0 +1,11 @@
+{
+  "name": "info-action-verified",
+  "description": "A plain InfoAction with a verified anchor and nothing at stake. The analysis must stay grounded: every figure from FACTS, a cited section that exists, no invented urgency, confidence not above 0.8 on an action that changes nothing on chain.",
+  "action": { "index": 0, "anchor": "info-good.jsonld" },
+  "context": {},
+  "expect": {
+    "maxConfidence": 0.8,
+    "figuresFrom": ["FACTS.deposit.ada"],
+    "conflictOfInterest": false
+  }
+}

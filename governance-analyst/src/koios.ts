@@ -86,8 +86,8 @@ export type VotingSummary = z.infer<typeof votingSummarySchema>;
 /** `GET /cli_protocol_params`: the Conway voting thresholds, in cardano-cli's JSON shape. */
 export const protocolParamsSchema = z
   .object({
-    dRepVotingThresholds: z.record(z.number()).optional(),
-    poolVotingThresholds: z.record(z.number()).optional(),
+    dRepVotingThresholds: z.record(z.string(), z.number()).optional(),
+    poolVotingThresholds: z.record(z.string(), z.number()).optional(),
     govActionLifetime: z.number().int().optional(),
   })
   .passthrough();

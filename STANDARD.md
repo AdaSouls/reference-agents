@@ -41,14 +41,16 @@ logs or prints a key that moves money or votes.
   test/                 vitest; fixtures recorded, never the network
   test/fixtures/
   .env.example          every variable, with what it is for; secrets never have defaults
-  package.json          scripts: start, lint, build, test (and eval when it has evals)
+  evals/cases/          what a good analysis of each fixture must do (rule 11)
+  evals/recorded/       the model's answers per case and prompt version
+  CHANGELOG.md          one line per behaviour change, under the package.json version
+  learning.md           what may change without a new version (nothing, by default) and the mistakes now pinned by gates and cases
+  package.json          scripts: start, lint, build, test, check, eval
 ```
 
-Files that only make sense once the agent has them: `evals/` (cases and
-expected events), `memory/policy.yaml` (working / episodic / semantic,
+Files that only make sense once the agent has them: `memory/policy.yaml` (working / episodic / semantic,
 retention), `tools/mcp.json` (MCP servers with a permission per tool:
-`read`, `write`, `moves-money`), `learning.md` (what may change without a
-new version: nothing, by default), `CHANGELOG.md`.
+`read`, `write`, `moves-money`).
 
 ## Rules every agent follows
 
@@ -92,6 +94,26 @@ new version: nothing, by default), `CHANGELOG.md`.
    commands that only read public data don't. Self-enforced rules are
    ADVISORY to a verifier; the point is that every record names the agent
    (`agent`, `iss`) and the exact rules it ran under (`almaVersion`).
+10. **The standard is checked by a machine.** `npm run check` runs
+   `tools/agent-check` against the agent's directory and CI fails on any
+   check it fails: layout and scripts, `alma.yaml` parses and grants no
+   value-moving capability without a declared limit and never `vote`,
+   `escalation.yaml` names a person per decision, secrets have no default in
+   `.env.example` and none is tracked by git (patterns scanned),
+   `security.md` names every secret variable, prompts are versioned files
+   and `PROMPT_VERSION` points at one, every event schema has a fixture that
+   validates against it, the test setup blocks `fetch`, every eval case has
+   a recording and the replay holds, `CHANGELOG.md` names the version,
+   `context/sources.yaml` gives every source a trust statement, `npm audit`
+   finds nothing high or critical. A rule the tool cannot check yet is still
+   a rule; a rule it can check is not a matter of review.
+11. **Evals pin the judgement.** `evals/cases/` holds fixture actions with
+   what a good analysis of each must do (an acceptable vote, sections it
+   must cite, words its budget notes must contain, FACTS paths its figures
+   must source). `npm run eval -- --record` runs the model and keeps its
+   answers under the prompt version; `--replay` re-judges them offline and
+   runs in `npm run check`. A prompt change makes every recording stale on
+   purpose: new judgement, new recording, reviewed in the same PR.
 
 
 ## Event catalogue
@@ -117,6 +139,8 @@ the contract.
 - [ ] Directory with the layout above; `README.md` has a "What it never does" section.
 - [ ] `alma.yaml` validates with `@adasouls/alma-manifest`; `alma connect` in the agent's directory gives it an identity and a delegation.
 - [ ] Rule 9: a guard runs before every command, with a test per refusal.
+- [ ] Rule 10: `npm run check` passes; CI runs it.
+- [ ] Rule 11: at least three eval cases, recorded, replaying green.
 - [ ] `escalation.yaml` and `security.md` written before the first line of `src/`.
 - [ ] Every event type has a schema under `events/schemas/` and a fixture that validates against it.
 - [ ] `npm test` passes offline; CI job added to `.github/workflows/ci.yml`.

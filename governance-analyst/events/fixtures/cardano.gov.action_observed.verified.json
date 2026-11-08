@@ -1,0 +1,31 @@
+{
+  "v": "alma-attestation/1",
+  "type": "cardano.gov.action_observed",
+  "agent": "alma:main:agent:governance-analyst-fixture",
+  "almaVersion": "0000000000000000000000000000000000000000000000000000000000000000",
+  "subject": { "kind": "cardano.gov_action", "id": "gov_action1fixture000000000000000000000000000000000000000000001qq", "network": "cardano:mainnet" },
+  "observedAt": "2026-11-03T00:00:00Z",
+  "observed": { "epoch": 606 },
+  "sources": [
+    { "name": "koios", "endpoint": "/proposal_list", "fetchedAt": "2026-11-03T00:00:00Z" },
+    { "name": "anchor", "endpoint": "https://anchors.example/info-good.jsonld", "fetchedAt": "2026-11-03T00:00:00Z", "digest": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426" }
+  ],
+  "claims": {
+    "actionId": "gov_action1fixture000000000000000000000000000000000000000000001qq",
+    "txHash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "index": 0,
+    "kind": "InfoAction",
+    "anchorUrl": "https://anchors.example/info-good.jsonld",
+    "anchorHash": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "anchorVerified": "verified",
+    "anchorDigest": "f7ffe23a8a34f7b34dde2c158bb67fdda789c5dd9a6c6d596824a07fdba75426",
+    "proposer": "stake1u9fixture",
+    "deposit": "100000000000",
+    "proposedEpoch": 600,
+    "expiresEpoch": 606,
+    "previousActionId": null
+  },
+  "artifact": null,
+  "decidedBy": null,
+  "issuedAt": "2026-11-03T00:00:01Z"
+}

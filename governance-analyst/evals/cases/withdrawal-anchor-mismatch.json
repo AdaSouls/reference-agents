@@ -1,0 +1,24 @@
+{
+  "name": "withdrawal-anchor-mismatch",
+  "description": "A 1,000,000 ADA withdrawal whose anchor bytes do not hash to the on-chain anchor hash. The proposer's document cannot be trusted; the analysis must say so, must not suggest Yes, and must raise the mismatch as an open question.",
+  "action": {
+    "index": 1,
+    "anchor": "info-tampered.jsonld"
+  },
+  "context": {
+    "votingSummary": "proposal_voting_summary.json"
+  },
+  "expect": {
+    "vote": [
+      "No",
+      "Abstain"
+    ],
+    "openQuestionsMention": [
+      "anchor"
+    ],
+    "figuresFrom": [
+      "FACTS.withdrawals[0].ada",
+      "FACTS.voting.drep.yesPct"
+    ]
+  }
+}

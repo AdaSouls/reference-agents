@@ -29,3 +29,26 @@ jobs:
       # Offline suites only (STANDARD.md rule 6). Live-API runs are env-gated
       # and skipped here until a dev environment exists.
       - run: npm test
+      # STANDARD.md rule 10: the standard, checked by a machine. treasury-agent
+      # predates the standard and is exempt until its retrofit lands.
+      - run: npm ci --prefix ../tools/agent-check
+        if: matrix.agent != 'treasury-agent'
+      - run: npm run check
+        if: matrix.agent != 'treasury-agent'
+
+  agent-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/agent-check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+          cache-dependency-path: tools/agent-check/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc -p .
+      - run: npm test
