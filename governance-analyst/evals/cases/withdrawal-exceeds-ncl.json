@@ -1,0 +1,27 @@
+{
+  "name": "withdrawal-exceeds-ncl",
+  "description": "The same 1,000,000 ADA withdrawal under a Net Change Limit with only 500,000 ADA left (60M already enacted of a 60.5M limit). FACTS.treasury.fitsRemaining is false; the budget notes must lead with that, the figures must source the remaining amount, and the suggestion cannot be Yes.",
+  "action": { "index": 1, "anchor": "info-good.jsonld" },
+  "context": {
+    "votingSummary": "proposal_voting_summary.json",
+    "treasuryPolicy": {
+      "netChangeLimits": [
+        {
+          "lovelace": "60500000000000",
+          "ada": "60500000",
+          "epochs": { "from": 600, "to": 700 },
+          "actionKey": "9999999999999999999999999999999999999999999999999999999999999999-0",
+          "proposalId": "gov_action1fixturencl",
+          "anchorHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "agreedWhen": "TREASURY-01a: Yes above 50% of active DRep voting stake",
+          "drepYesAbovePct": 50
+        }
+      ]
+    }
+  },
+  "expect": {
+    "vote": ["No", "Abstain"],
+    "budgetNotesMention": ["Net Change Limit"],
+    "figuresFrom": ["FACTS.treasury.remainingAda"]
+  }
+}

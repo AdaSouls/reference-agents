@@ -2,6 +2,8 @@
 
 ## What this agent holds
 
+- `KOIOS_API_KEY`: optional bearer token for a Koios tier; read-only data
+  access. Leaking it costs rate limit, nothing else. Never printed.
 - `.alma/issuer.key`: the agent's ALMA key, made by `alma connect`. Ed25519,
   signs records (analysis, decision) in alma-core's issuer-signature format.
   It moves no money and casts no vote. Mode 600, never committed, printed

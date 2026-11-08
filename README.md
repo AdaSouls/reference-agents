@@ -47,6 +47,15 @@ procurement, billing and marketplace agents.
 Code comments cite AdaSouls design documents (`REPOSITORY.md`, `ADR-NNN`)
 that are not published yet.
 
+## tools/agent-check
+
+The machine-checkable half of `STANDARD.md` (rule 10). Each agent runs it
+as `npm run check`; CI runs it for every agent that follows the standard.
+
+```
+npx tsx tools/agent-check/check.ts governance-analyst [--no-subprocess] [--json]
+```
+
 ## Security
 
 Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md).
